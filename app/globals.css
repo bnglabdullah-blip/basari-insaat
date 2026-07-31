@@ -1,0 +1,346 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   BAŞARI İNŞAAT — Tasarım Sistemi
+   Yön: "Editöryel Sadelik" — bol beyaz alan, iri tipografi, katı grid.
+   ========================================================================== */
+
+@theme {
+  /* --- Renk ---------------------------------------------------------------
+     Lacivert logodan birebir alındı. Kağıt rengi kasıtlı olarak saf beyaz
+     DEĞİL: #FFFFFF geniş alanda parlar ve gözü yorar, #F7F6F3 ise basılı
+     kağıt hissi verir ve fotoğrafların sıcak tonlarıyla çakışmaz.        */
+  --color-navy: #191d37;
+  --color-navy-soft: #242942;
+  --color-paper: #f7f6f3;
+  --color-paper-dim: #efede8;
+
+  /* Kiremit turuncusu — bina fotoğraflarındaki çatı ve tuğladan alındı.
+     Marka paletine dışarıdan eklenmedi, zaten görsellerin içinde var.    */
+  --color-clay: #b4553c;
+
+  /* Gri değil: laciverte doğru kaydırılmış nötr. Saf gri (#6B6B6B) bu
+     paletin yanında ölü ve "şablon" durur.                              */
+  --color-muted: #6b6f82;
+  --color-rule: #dedcd6;
+  --color-rule-dark: #363b52;
+
+  /* --- Tipografi ---------------------------------------------------------
+     Değişkenler layout.tsx'te next/font tarafından doldurulur.           */
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Akışkan ölçek: clamp() sayesinde ara kırılım noktası (breakpoint)
+     yazmadan mobilden masaüstüne sürekli ölçekleniyor.                   */
+  --text-hero: clamp(2.75rem, 8vw, 7rem);
+  --text-display: clamp(2rem, 5vw, 3.75rem);
+  --text-title: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+/* ==========================================================================
+   Temel
+   ========================================================================== */
+
+html {
+  scroll-behavior: smooth;
+  /* Sabit header'ın, tıklanan bölüm başlığının üstünü kesmesini engeller */
+  scroll-padding-top: 6rem;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-navy);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem; /* 17px — 16px'ten bir tık iri, uzun metinde okunaklı */
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Türkçe metinde uzun kelimeler (ör. "Büyükerşen") dar ekranda taşmasın */
+p,
+li,
+h1,
+h2,
+h3 {
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+::selection {
+  background: var(--color-navy);
+  color: var(--color-paper);
+}
+
+/* Klavye ile gezinenler için görünür odak halkası. Fare kullanıcısını
+   rahatsız etmemek için :focus değil :focus-visible.                      */
+:focus-visible {
+  outline: 2px solid var(--color-clay);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ==========================================================================
+   Tipografi yardımcıları
+   ========================================================================== */
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+/* Bölüm etiketi: "01 — HİZMETLER" gibi küçük, harf aralığı açık üst başlık */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Rakamların dikey hizada durması için (istatistik blokları).
+   Orantılı rakamlarda "12" ve "180" alt alta kaydık görünür.             */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Hareket — kütüphane yok, native CSS scroll-driven animation
+   --------------------------------------------------------------------------
+   @supports bloğu dışında hiçbir başlangıç durumu tanımlanmıyor. Bu kasıtlı:
+   özelliği desteklemeyen tarayıcıda (bugün Firefox) içerik hiç gizlenmeden,
+   animasyonsuz ama tam görünür halde gelir. "opacity:0 + JS ile aç" desenin-
+   deki en büyük risk — JS çökerse sayfa boş kalır — böylece hiç doğmuyor.
+   ========================================================================== */
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(1.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wipe {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 22%;
+    }
+    /* Ardışık öğelerin sırayla değil, kendi konumlarına göre açılması için
+       gecikme yerine range kaydırması kullanılıyor — scroll geri alındığında
+       da doğru davranır, setTimeout tabanlı sıralamada bu mümkün değil.    */
+    .reveal-late {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 12% cover 32%;
+    }
+    .wipe {
+      animation: wipe linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 30%;
+    }
+  }
+
+  /* Sayfa açılışındaki hero animasyonu scroll'a değil yüklemeye bağlı */
+  .enter {
+    animation: reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .enter-1 {
+    animation-delay: 0.05s;
+  }
+  .enter-2 {
+    animation-delay: 0.15s;
+  }
+  .enter-3 {
+    animation-delay: 0.25s;
+  }
+}
+
+/* ==========================================================================
+   Bileşen desenleri
+   ========================================================================== */
+
+/* Bağlantı altçizgisi: hover'da soldan sağa büyür. text-decoration ile
+   değil pseudo-element ile, çünkü kalınlığı ve rengi ayrı kontrol edilebilir. */
+.link-underline {
+  position: relative;
+  display: inline-block;
+}
+.link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.link-underline:hover::after,
+.link-underline:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Hizmet/proje listesi satırı: tüm satır hover'da hafifçe sağa kayar */
+.row-link {
+  transition: padding-left 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.4s ease;
+}
+.row-link:hover {
+  padding-left: 1.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-link:hover {
+    padding-left: 0;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Header zemini: scroll edildikçe beliren arka plan + alt çizgi.
+   Scroll event listener YOK — native scroll-timeline kullanılıyor, iş
+   compositor'da yapılıyor, ana thread'e hiç dokunulmuyor.
+   Desteklenmeyen tarayıcıda animasyon 0sn süreyle `to` durumuna dolar
+   (fill: both), yani header baştan itibaren opak olur. Kabul edilebilir. */
+@keyframes header-solid {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.header-solid {
+  animation: header-solid linear both;
+  animation-timeline: scroll();
+  animation-range: 0 120px;
+}
+
+/* Fotoğrafın üstündeki metnin okunabilirliğini garantiye alan degrade.
+   Düz siyah %40 opaklık yerine degrade: fotoğrafın alt kısmı korunurken
+   üst kısmı berrak kalır.                                                */
+.photo-scrim {
+  background: linear-gradient(
+    to top,
+    rgb(25 29 55 / 0.88) 0%,
+    rgb(25 29 55 / 0.45) 35%,
+    rgb(25 29 55 / 0.05) 70%,
+    transparent 100%
+  );
+}
+
+/* ==========================================================================
+   Karakter katmanı
+   --------------------------------------------------------------------------
+   Bu bölümün tamamı dekoratif ve tamamı CSS. Hiçbiri içerik taşımıyor, hiçbiri
+   JS istemiyor; desteklenmeyen bir tarayıcıda tek tek kaybolurlar ve geriye
+   çalışan sade bir sayfa kalır.
+   ========================================================================== */
+
+/* --- Gren dokusu ---------------------------------------------------------
+   Düz lacivert geniş alanda "dijital" durur; basılı bir sayfada mürekkebin
+   kâğıt üzerindeki dokusu vardır. feTurbulence bunu üretiyor.
+
+   Neden data-URI: ~300 bayt ve ağ isteği yok. Ayrı bir .png doku dosyası hem
+   istek hem de çözünürlük derdi getirirdi — SVG gürültüsü her ekran
+   yoğunluğunda aynı keskinlikte kalır.
+
+   pointer-events:none kritik — katman içeriğin üstünde duruyor, olmasaydı
+   altındaki bağlantılar tıklanamazdı.                                      */
+.grain {
+  position: relative;
+}
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.13;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --- Filigran bölüm numarası ---------------------------------------------
+   İçi boş, dev bir rakam. Editöryel dergilerin imzası: renk eklemeden
+   hiyerarşi kurar ve sayfaya ölçek duygusu verir.
+
+   Daima aria-hidden ile kullanılmalı — ekran okuyucuya "01" diye bağırmanın
+   hiçbir anlamı yok. Desteklenmeyen tarayıcıda text-stroke uygulanmaz ve
+   color:transparent sayesinde görünmez olur; dekoratif olduğu için kayıp yok. */
+.filigran {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(6rem, 16vw, 14rem);
+  line-height: 0.75;
+  letter-spacing: -0.05em;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--color-rule);
+}
+.filigran-koyu {
+  -webkit-text-stroke-color: var(--color-rule-dark);
+}
+
+/* --- Görünür 12 kolon grid çizgileri -------------------------------------
+   "Katı grid" iddiasını göz için doğrular. Mobilde kapalı: 375px'te 12 çizgi
+   dekorasyon değil kirlilik olur.                                          */
+@media (min-width: 768px) {
+  .grid-rules {
+    position: relative;
+  }
+  .grid-rules::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--color-rule) 0 1px,
+      transparent 1px calc(100% / 12)
+    );
+  }
+}
+
+/* Fotoğraflar her yerde orijinal renkleriyle kullanılıyor. Burada bir
+   duotone (lacivert monokrom) sınıfı vardı ve accent görsellere
+   uygulanıyordu; kaldırıldı — binanın tuğla ve kiremit tonları sitenin
+   kendi paletini zaten taşıyor, monokrom onları gereksiz yere siliyordu. */
+
+/* Yükleniyor/boş görsel yerine geçen desenli zemin */
+.placeholder-hatch {
+  background-color: var(--color-paper-dim);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgb(25 29 55 / 0.04) 10px,
+    rgb(25 29 55 / 0.04) 20px
+  );
+}

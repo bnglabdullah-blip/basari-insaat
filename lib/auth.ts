@@ -1,0 +1,124 @@
+import "server-only";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { jetonDogrula, jetonUret, parolaDogrula } from "./oturum";
+
+/**
+ * Next.js'e bagli kimlik dogrulama katmani.
+ * Saf kripto mantigi oturum.ts icinde ve orada test ediliyor.
+ */
+
+const CEREZ_ADI = "basari_oturum";
+
+function anahtar(): string {
+  const a = process.env.OTURUM_ANAHTARI;
+  if (!a || a.length < 32) {
+    // Sessizce zayif bir varsayilana dusmek yerine hemen ve net bir hata:
+    // uretimde tahmin edilebilir bir anahtarla calismak, oturum jetonlarinin
+    // taklit edilebilmesi demektir.
+    throw new Error(
+      "OTURUM_ANAHTARI ortam degiskeni tanimli degil veya 32 karakterden kisa. " +
+        "`npm run parola` calistirarak deger uretebilirsiniz."
+    );
+  }
+  return a;
+}
+
+/* --------------------------------------------------------------------------
+   Giris denemesi hiz siniri
+   --------------------------------------------------------------------------
+   Bellek ici, surec basina. Tek kapsayicida calisan bu site icin yeterli;
+   birden fazla kopya calistirilirsa paylasimli bir sayaca gecilmeli.
+   ponytail: bellek ici sayac, coklu kopyaya gecilirse Redis'e tasinir.
+   -------------------------------------------------------------------------- */
+
+const denemeler = new Map<string, { sayi: number; ilk: number }>();
+const PENCERE_MS = 15 * 60 * 1000;
+const AZAMI_DENEME = 8;
+
+function hizSiniriAsildi(kimlik: string): boolean {
+  const simdi = Date.now();
+  const kayit = denemeler.get(kimlik);
+
+  if (!kayit || simdi - kayit.ilk > PENCERE_MS) {
+    denemeler.set(kimlik, { sayi: 1, ilk: simdi });
+    return false;
+  }
+  kayit.sayi += 1;
+  return kayit.sayi > AZAMI_DENEME;
+}
+
+/* --------------------------------------------------------------------------
+   Giris / cikis
+   -------------------------------------------------------------------------- */
+
+export type GirisSonuc = { ok: true } | { ok: false; hata: string };
+
+export async function girisYap(
+  parola: string,
+  kimlik = "genel"
+): Promise<GirisSonuc> {
+  if (hizSiniriAsildi(kimlik)) {
+    return {
+      ok: false,
+      hata: "Çok fazla hatalı deneme yapıldı. 15 dakika sonra tekrar deneyin.",
+    };
+  }
+
+  const saklanan = process.env.ADMIN_PAROLA_HASH;
+  if (!saklanan) {
+    throw new Error(
+      "ADMIN_PAROLA_HASH ortam degiskeni tanimli degil. " +
+        "`npm run parola` calistirip ciktisini .env.local dosyasina ekleyin."
+    );
+  }
+
+  if (!parolaDogrula(parola, saklanan)) {
+    return { ok: false, hata: "Parola hatalı." };
+  }
+
+  denemeler.delete(kimlik);
+
+  const cerezler = await cookies();
+  cerezler.set(CEREZ_ADI, jetonUret(anahtar()), {
+    httpOnly: true, // JS ile okunamaz -> XSS ile oturum calinamaz
+    sameSite: "lax", // baska sitelerden gelen isteklerde gonderilmez -> CSRF
+    secure: process.env.NODE_ENV === "production", // HTTPS disinda gonderilmez
+    path: "/",
+    maxAge: 60 * 60 * 12,
+  });
+
+  return { ok: true };
+}
+
+export async function cikisYap(): Promise<void> {
+  const cerezler = await cookies();
+  cerezler.delete(CEREZ_ADI);
+}
+
+/* --------------------------------------------------------------------------
+   Yetki kontrolu
+   -------------------------------------------------------------------------- */
+
+export async function oturumAcikMi(): Promise<boolean> {
+  const cerezler = await cookies();
+  return jetonDogrula(cerezler.get(CEREZ_ADI)?.value, anahtar());
+}
+
+/**
+ * Yetkisiz erisimde giris sayfasina yonlendirir.
+ *
+ * !!! HER SERVER ACTION KENDI ICINDE BUNU CAGIRMAK ZORUNDA !!!
+ *
+ * Sebebi: server action'lar layout hiyerarsisinden BAGIMSIZ calisir. Next.js
+ * bunlari, action kimligini bilen herkesin dogrudan POST edebilecegi birer uc
+ * nokta olarak yayinlar. `app/admin/(panel)/layout.tsx` icindeki kontrol
+ * yalnizca SAYFA RENDER'ini korur; bir action cagrildiginda o layout hic
+ * calistirilmaz. Kontrolu sadece layout'a birakmak, App Router'da en sik
+ * yapilan guvenlik hatasidir.
+ */
+export async function yetkiGerekli(): Promise<void> {
+  if (!(await oturumAcikMi())) redirect("/admin/giris");
+}
+
+export { CEREZ_ADI };

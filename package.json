@@ -1,0 +1,33 @@
+{
+  "name": "basari-insaat",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test \"lib/**/*.test.ts\"",
+    "parola": "node scripts/parola.mjs"
+  },
+  "comment-overrides": "Next 16 icinde sharp@0.34.5 (libvips CVE-2026-33327/33328/35590/35591) ve postcss@8.4.31 (source-map path traversal) gomulu geliyor. 'npm audit fix' bunlar icin Next'i 9.3.3'e dusurmeyi onerir - kabul edilemez. Bunun yerine guvenli surumler zorlaniyor. Next yukseltilirken bu overrides'in hala gerekli olup olmadigi kontrol edilmeli.",
+  "overrides": {
+    "sharp": "^0.35.3",
+    "postcss": "^8.5.25"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.2",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,27 @@
+services:
+  site:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+    environment:
+      # Bu iki değer .env dosyasından okunur — compose dosyasına YAZILMAZ,
+      # çünkü compose.yaml versiyon kontrolüne girer.
+      ADMIN_PAROLA_HASH: ${ADMIN_PAROLA_HASH:?ADMIN_PAROLA_HASH tanimli degil - once "npm run parola" calistirin}
+      OTURUM_ANAHTARI: ${OTURUM_ANAHTARI:?OTURUM_ANAHTARI tanimli degil - once "npm run parola" calistirin}
+      SITE_URL: ${SITE_URL:-https://basariinsaat.com}
+
+    volumes:
+      # ---------------------------------------------------------------
+      # BU İKİ SATIR KRİTİK.
+      # Konteyner içindeki dosya sistemi her `docker compose up --build`
+      # ile sıfırlanır. Volume bağlanmazsa TÜM projeler, mesajlar ve
+      # yüklenen fotoğraflar her güncellemede silinir.
+      # ---------------------------------------------------------------
+      - basari-veri:/app/data
+      - basari-fotograflar:/app/public/uploads
+
+volumes:
+  basari-veri:
+  basari-fotograflar:

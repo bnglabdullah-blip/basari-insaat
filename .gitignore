@@ -1,0 +1,15 @@
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# Ortam degiskenleri - parola hash'i ve oturum anahtari burada, ASLA commit edilmez
+.env.local
+.env
+
+# Veritabani ve yuklenen fotograflar (Docker volume'lerinde yasar)
+data/
+public/uploads/
+
+# Fotograf kaynaklari — yuklenmis kopyalari zaten public/uploads icinde
+basari-resimler/
