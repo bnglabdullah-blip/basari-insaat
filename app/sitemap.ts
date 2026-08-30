@@ -1,5 +1,4 @@
 import type { MetadataRoute } from "next";
-import { HIZMETLER } from "@/lib/icerik";
 import { projeleriGetir } from "@/lib/queries";
 
 // Projeler veritabanindan okundugu icin sitemap her istekte uretilmeli;
@@ -12,25 +11,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const sabit = [
     "",
     "/projeler",
-    "/hizmetler",
     "/hakkimizda",
-    "/surec",
-    "/ekip",
+    "/sirket-bilgilerimiz",
     "/iletisim",
   ].map((yol) => ({
     url: `${site}${yol}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: yol === "" ? 1 : 0.8,
-  }));
-
-  // Hizmet detaylari sabit listeden turetiliyor — yeni bir hizmet eklendiginde
-  // sitemap'i ayrica guncellemek gerekmiyor.
-  const hizmetler = HIZMETLER.map((h) => ({
-    url: `${site}/hizmetler/${h.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
   }));
 
   const projeler = projeleriGetir().map((p) => ({
@@ -40,5 +28,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...sabit, ...hizmetler, ...projeler];
+  return [...sabit, ...projeler];
 }

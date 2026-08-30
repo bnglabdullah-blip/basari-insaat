@@ -110,11 +110,17 @@ export function projeEkle(v: {
   aciklama: string;
   yayinda: number;
 }): number {
+  /*
+   * Yeni proje EN KUCUK sirayi alir (MIN - 1), en buyugunu degil.
+   * Listeler "ORDER BY sira ASC" oldugu icin bu, yeni eklenen projeyi
+   * listenin BASINA koyar. Onceki hali (MAX + 1) tam tersini yapiyor,
+   * yeni projeyi en sona atiyordu.
+   */
   const r = db
     .prepare(
       `INSERT INTO projeler (slug, baslik, konum, durum, yil, ozet, aciklama, yayinda, sira)
        VALUES (@slug, @baslik, @konum, @durum, @yil, @ozet, @aciklama, @yayinda,
-               (SELECT COALESCE(MAX(sira), 0) + 1 FROM projeler))`
+               (SELECT COALESCE(MIN(sira), 0) - 1 FROM projeler))`
     )
     .run(v);
   return Number(r.lastInsertRowid);

@@ -24,12 +24,10 @@
  * Degerler galerideki editoryel siraya gore secildi:
  *   1 → genis kose cekimi   (hero slab icin dogru olcek)
  *   3 → tugla/denizlik detayi (accent icin doku, bir bina fotografi daha degil)
- *   6 → cephe gridi          (hizmetler sayfasinin geometrik dili)
  */
 export const YUVA = {
   anaHero: 1,
   hakkindaAccent: 3,
-  hizmetlerAccent: 6,
 } as const;
 
 /**

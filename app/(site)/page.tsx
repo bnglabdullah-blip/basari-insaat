@@ -31,10 +31,15 @@ export default function AnaSayfa() {
    */
   const heroGorsel = yuvaGorseli(tumGorseller(), YUVA.anaHero) ?? oneCikan?.kapak;
 
+  /*
+   * Yetkili ISIMLERI siteden tamamen kaldirildi (musteri istegi); cep
+   * numaralari etiketsiz basiliyor. "Sabit hat" bir kisi adi olmadigi icin
+   * etiketini koruyor.
+   */
   const telefonlar = [
     { ad: "Sabit hat", tel: ayarlar.telefonSabit },
-    { ad: ayarlar.yetkili1Ad, tel: ayarlar.yetkili1Tel },
-    { ad: ayarlar.yetkili2Ad, tel: ayarlar.yetkili2Tel },
+    { ad: "", tel: ayarlar.yetkili1Tel },
+    { ad: "", tel: ayarlar.yetkili2Tel },
   ].filter((t) => t.tel);
 
   return (
@@ -103,36 +108,30 @@ export default function AnaSayfa() {
           01
         </span>
 
-        <div className="relative flex flex-wrap items-baseline justify-between gap-4 border-b border-[var(--color-rule)] pb-5">
+        <div className="relative border-b border-[var(--color-rule)] pb-5">
           <h2 className="eyebrow">Ne yapıyoruz</h2>
-          <Link href="/hizmetler" className="link-underline text-sm font-medium">
-            Tüm hizmetler →
-          </Link>
         </div>
 
+        {/*
+          Satırlar artık bağlantı DEĞİL: /hizmetler detay sayfaları müşteri
+          isteğiyle kaldırıldı. Tıklanabilir görünüp hiçbir yere gitmeyen bir
+          satır, olmayan bağlantıdan daha kötüdür.
+        */}
         <ul className="relative">
           {HIZMETLER.map((h) => (
-            <li key={h.slug} className="reveal border-b border-[var(--color-rule)]">
-              <Link
-                href={`/hizmetler/${h.slug}`}
-                className="row-link grid gap-4 py-8 md:grid-cols-12 md:items-baseline md:py-10"
-              >
-                <span className="tabular text-sm font-medium text-[var(--color-clay)] md:col-span-1">
-                  {h.no}
-                </span>
-                <h3 className="font-display text-[length:var(--text-title)] md:col-span-4">
-                  {h.ad}
-                </h3>
-                <p className="max-w-xl leading-relaxed text-[var(--color-muted)] md:col-span-5 md:col-start-7">
-                  {h.ozet}
-                </p>
-                <span
-                  aria-hidden
-                  className="text-sm text-[var(--color-clay)] md:col-span-1 md:text-right"
-                >
-                  →
-                </span>
-              </Link>
+            <li
+              key={h.ad}
+              className="reveal grid gap-4 border-b border-[var(--color-rule)] py-8 md:grid-cols-12 md:items-baseline md:py-10"
+            >
+              <span className="tabular text-sm font-medium text-[var(--color-clay)] md:col-span-1">
+                {h.no}
+              </span>
+              <h3 className="font-display text-[length:var(--text-title)] md:col-span-4">
+                {h.ad}
+              </h3>
+              <p className="max-w-xl leading-relaxed text-[var(--color-muted)] md:col-span-5 md:col-start-7">
+                {h.ozet}
+              </p>
             </li>
           ))}
         </ul>
@@ -186,41 +185,43 @@ export default function AnaSayfa() {
       )}
 
       {/* ====================================================================
-          HAKKINDA ÖZETİ — arkada kim var. Ekip ve sürece buradan dallanıyor.
+          HAKKINDA ÖZETİ — yalnızca panelden metin girilmişse görünür.
+          Hakkımızda içeriği müşteri isteğiyle boşaltıldı; boş bir başlık
+          basmaktansa bölümü hiç açmamak doğru. Panelden metin girildiği
+          anda kendiliğinden geri gelir.
          ==================================================================== */}
-      <section className="relative mx-auto max-w-[100rem] overflow-hidden px-6 pb-24 md:px-10 md:pb-32">
-        <span aria-hidden className="filigran right-4 top-0 md:right-10">
-          02
-        </span>
+      {(ayarlar.hakkindaBaslik || ayarlar.hakkindaMetin) && (
+        <section className="relative mx-auto max-w-[100rem] overflow-hidden px-6 pb-24 md:px-10 md:pb-32">
+          <span aria-hidden className="filigran right-4 top-0 md:right-10">
+            02
+          </span>
 
-        <div className="relative border-t border-[var(--color-rule)] pt-16 md:pt-20">
-          <div className="grid gap-12 md:grid-cols-12">
-            <h2 className="font-display reveal text-[length:var(--text-display)] md:col-span-6">
-              {ayarlar.hakkindaBaslik}
-            </h2>
-            <div className="reveal-late space-y-6 text-lg leading-relaxed text-[var(--color-muted)] md:col-span-5 md:col-start-8">
-              {ayarlar.hakkindaMetin
-                .split("\n\n")
-                .slice(0, 2)
-                .map((paragraf, i) => (
-                  <p key={i}>{paragraf}</p>
-                ))}
+          <div className="relative border-t border-[var(--color-rule)] pt-16 md:pt-20">
+            <div className="grid gap-12 md:grid-cols-12">
+              <h2 className="font-display reveal text-[length:var(--text-display)] md:col-span-6">
+                {ayarlar.hakkindaBaslik}
+              </h2>
+              <div className="reveal-late space-y-6 text-lg leading-relaxed text-[var(--color-muted)] md:col-span-5 md:col-start-8">
+                {ayarlar.hakkindaMetin
+                  .split("\n\n")
+                  .slice(0, 2)
+                  .map((paragraf, i) => (
+                    <p key={i}>{paragraf}</p>
+                  ))}
 
-              <div className="flex flex-wrap gap-x-8 gap-y-3 pt-2 font-medium text-[var(--color-navy)]">
-                <Link href="/hakkimizda" className="link-underline">
-                  Hakkımızda →
-                </Link>
-                <Link href="/ekip" className="link-underline">
-                  Ekip →
-                </Link>
-                <Link href="/surec" className="link-underline">
-                  Çalışma sürecimiz →
-                </Link>
+                <div className="flex flex-wrap gap-x-8 gap-y-3 pt-2 font-medium text-[var(--color-navy)]">
+                  <Link href="/hakkimizda" className="link-underline">
+                    Hakkımızda →
+                  </Link>
+                  <Link href="/sirket-bilgilerimiz" className="link-underline">
+                    Şirket bilgilerimiz →
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ====================================================================
           RAKAMLAR — lacivert bölüm. Sayfanın ritmini kıran koyu blok:
@@ -286,8 +287,13 @@ export default function AnaSayfa() {
                   href={`tel:${telLink(t.tel)}`}
                   className="row-link flex items-baseline justify-between gap-4 border-b border-[var(--color-rule)] py-4"
                 >
-                  <span className="text-sm text-[var(--color-muted)]">{t.ad}</span>
-                  <span className="tabular font-medium">{t.tel}</span>
+                  {t.ad && (
+                    <span className="text-sm text-[var(--color-muted)]">
+                      {t.ad}
+                    </span>
+                  )}
+                  {/* ml-auto: etiket basilmadiginda da numara sagda kalir. */}
+                  <span className="tabular ml-auto font-medium">{t.tel}</span>
                 </a>
               ))}
             </div>

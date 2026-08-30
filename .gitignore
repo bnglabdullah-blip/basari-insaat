@@ -13,3 +13,6 @@ public/uploads/
 
 # Fotograf kaynaklari — yuklenmis kopyalari zaten public/uploads icinde
 basari-resimler/
+
+.vercel
+.env*

@@ -2,15 +2,22 @@
 import Link from "next/link";
 import { GELISTIRICI, GEZINME, VARSAYILAN, telLink } from "@/lib/icerik";
 
-/** Ad + numara ciftini tel: baglantisi olarak basar. */
-function Yetkili({ ad, tel }: { ad: string; tel: string }) {
+/**
+ * Numarayi tel: baglantisi olarak basar. Etiket alani OPSIYONEL:
+ * yetkili isimleri musteri istegiyle siteden tamamen kaldirildi, numaralar
+ * etiketsiz duruyor. Sabit hat kisi adi olmadigi icin etiketini koruyor.
+ *
+ * Baglantida ml-auto var: etiket basilmadiginda da numara saga yaslanir,
+ * justify-between'in tek cocukla sola kaymasini engeller.
+ */
+function Yetkili({ ad, tel }: { ad?: string; tel: string }) {
   if (!tel) return null;
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-[var(--color-rule-dark)] py-3">
-      <span className="text-sm text-[var(--color-paper)]/60">{ad}</span>
+      {ad && <span className="text-sm text-[var(--color-paper)]/60">{ad}</span>}
       <a
         href={`tel:${telLink(tel)}`}
-        className="link-underline tabular text-sm text-[var(--color-paper)]"
+        className="link-underline tabular ml-auto text-sm text-[var(--color-paper)]"
       >
         {tel}
       </a>
@@ -66,8 +73,8 @@ export default function SiteFooter({
             <h2 className="eyebrow text-[var(--color-paper)]/50">İletişim</h2>
             <div className="mt-3">
               <Yetkili ad="Sabit hat" tel={ayarlar.telefonSabit} />
-              <Yetkili ad={ayarlar.yetkili1Ad} tel={ayarlar.yetkili1Tel} />
-              <Yetkili ad={ayarlar.yetkili2Ad} tel={ayarlar.yetkili2Tel} />
+              <Yetkili tel={ayarlar.yetkili1Tel} />
+              <Yetkili tel={ayarlar.yetkili2Tel} />
             </div>
           </div>
         </div>
