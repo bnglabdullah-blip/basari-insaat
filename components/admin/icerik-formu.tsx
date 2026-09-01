@@ -111,6 +111,12 @@ export default function IcerikFormu({ ayarlar }: { ayarlar: Ayarlar }) {
           etiket="Çalışma saatleri"
           deger={ayarlar.calismaSaatleri}
         />
+        <Alan
+          ad="whatsapp"
+          etiket="WhatsApp numarası"
+          ipucu="İletişim formu bu numaraya yönlenir. 0534 590 25 63 gibi yazın; başındaki sıfır veya +90 fark etmez."
+          deger={ayarlar.whatsapp}
+        />
       </section>
 
       <section className="space-y-8">

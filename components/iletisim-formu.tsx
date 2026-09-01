@@ -1,108 +1,59 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import { mesajGonderAction, type FormDurum } from "@/app/(site)/iletisim/actions";
+import { useState } from "react";
+import { whatsappLink, whatsappMesaji } from "@/lib/icerik";
 
 const girdiSinif =
   "w-full border border-[var(--color-rule)] bg-white px-4 py-3.5 outline-none transition-colors focus:border-[var(--color-navy)]";
 
-function Gonder() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="mt-2 bg-[var(--color-navy)] px-8 py-4 font-medium text-[var(--color-paper)] transition-colors hover:bg-[var(--color-clay)] disabled:opacity-50"
-    >
-      {pending ? "Gönderiliyor…" : "Mesajı gönder"}
-    </button>
-  );
-}
+/**
+ * Iletisim formu — sunucuya HIC ugramiyor.
+ *
+ * Gonder'e basildiginda ziyaretcinin kendi WhatsApp'i, mesaj yazili ve
+ * gonderilmeye hazir halde aciliyor. Sunucu tarafi olmadigi icin:
+ *   - aylik gonderim kotasi ya da e-posta saglayicisi yok,
+ *   - bot koruması (bal kupu, hiz siniri) gereksiz: spam gonderilecek bir
+ *     uc nokta kalmadi,
+ *   - forma yazilan hicbir sey saklanmiyor.
+ *
+ * Telefon alani KASITLI olarak yok: mesaji ziyaretcinin kendi WhatsApp
+ * hesabi gonderdigi icin numarasi mesaja zaten ilisik geliyor. Ayrica
+ * yazdirmak, iki kez veri girisi olurdu.
+ */
+export default function IletisimFormu({ whatsapp }: { whatsapp: string }) {
+  const [ad, setAd] = useState("");
+  const [mesaj, setMesaj] = useState("");
 
-export default function IletisimFormu() {
-  const [durum, action] = useActionState<FormDurum, FormData>(
-    mesajGonderAction,
-    {}
-  );
+  function gonder(olay: React.FormEvent<HTMLFormElement>) {
+    olay.preventDefault();
+    const adres = whatsappLink(whatsapp, whatsappMesaji(ad, mesaj));
 
-  // Basarili gonderimden sonra formu degil tesekkur mesajini goster.
-  if (durum.bilgi) {
-    return (
-      <div
-        role="status"
-        className="border-l-2 border-[var(--color-navy)] bg-[var(--color-navy)]/5 p-8"
-      >
-        <p className="font-display text-2xl">Teşekkürler.</p>
-        <p className="mt-3 text-[var(--color-muted)]">{durum.bilgi}</p>
-      </div>
-    );
+    /*
+     * Yeni sekmede acmayi deniyoruz. Engellenirse (bazi tarayicilar acilir
+     * pencereleri kisitlar) ayni sekmede gidiyoruz — sessizce hicbir sey
+     * olmamasindansa siteden ayrilmak iyidir, aksi halde ziyaretci
+     * gonderdigini saniyor ama mesaj hicbir yere ulasmiyor.
+     */
+    const pencere = window.open(adres, "_blank", "noopener,noreferrer");
+    if (!pencere) window.location.href = adres;
   }
 
   return (
-    <form action={action} className="space-y-6">
-      {/*
-        Bal küpü. Ekran okuyucuların da atlaması için aria-hidden + tabIndex=-1;
-        display:none yerine ekran dışına taşınıyor çünkü bazı botlar
-        display:none alanları doldurmayacak kadar akıllı.
-      */}
-      <div
-        aria-hidden="true"
-        className="absolute left-[-9999px] h-0 w-0 overflow-hidden"
-      >
-        <label htmlFor="website">Bu alanı boş bırakın</label>
-        <input id="website" name="website" tabIndex={-1} autoComplete="off" />
-      </div>
-
+    <form onSubmit={gonder} className="space-y-6">
       <div>
         <label htmlFor="ad" className="eyebrow block text-[var(--color-navy)]">
-          Adınız *
+          Ad soyad *
         </label>
         <input
           id="ad"
           name="ad"
           required
           autoComplete="name"
+          value={ad}
+          onChange={(e) => setAd(e.target.value)}
           className={`${girdiSinif} mt-2`}
         />
       </div>
-
-      <div className="grid gap-6 sm:grid-cols-2">
-        <div>
-          <label
-            htmlFor="telefon"
-            className="eyebrow block text-[var(--color-navy)]"
-          >
-            Telefon
-          </label>
-          <input
-            id="telefon"
-            name="telefon"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            className={`${girdiSinif} mt-2`}
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="eposta"
-            className="eyebrow block text-[var(--color-navy)]"
-          >
-            E-posta
-          </label>
-          <input
-            id="eposta"
-            name="eposta"
-            type="email"
-            autoComplete="email"
-            className={`${girdiSinif} mt-2`}
-          />
-        </div>
-      </div>
-      <p className="-mt-3 text-xs text-[var(--color-muted)]">
-        Telefon veya e-postadan en az birini girin.
-      </p>
 
       <div>
         <label
@@ -116,21 +67,33 @@ export default function IletisimFormu() {
           name="mesaj"
           required
           rows={6}
+          value={mesaj}
+          onChange={(e) => setMesaj(e.target.value)}
           className={`${girdiSinif} mt-2 resize-y`}
           placeholder="Arsanız, daire talebiniz veya dönüşüm süreciniz hakkında kısaca bilgi verin."
         />
       </div>
 
-      {durum.hata && (
-        <p
-          role="alert"
-          className="border-l-2 border-[var(--color-clay)] bg-[var(--color-clay)]/8 px-4 py-3 text-sm text-[var(--color-clay)]"
+      <button
+        type="submit"
+        className="mt-2 flex items-center gap-3 bg-[var(--color-navy)] px-8 py-4 font-medium text-[var(--color-paper)] transition-colors hover:bg-[var(--color-clay)]"
+      >
+        {/* WhatsApp isareti — tek renk, metinle ayni rengi aliyor. */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className="h-5 w-5"
         >
-          {durum.hata}
-        </p>
-      )}
+          <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23 2.2 0 4.27.86 5.83 2.41a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.79.97-.14.16-.29.18-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43h-.47c-.17 0-.43.06-.66.31-.22.25-.87.85-.87 2.07 0 1.22.89 2.4 1.02 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.22-.16-.47-.28Z" />
+        </svg>
+        WhatsApp&apos;tan gönder
+      </button>
 
-      <Gonder />
+      <p className="text-xs text-[var(--color-muted)]">
+        WhatsApp açılacak ve mesajınız yazılı gelecek; göndermeden önce
+        görebilir, dilerseniz düzenleyebilirsiniz.
+      </p>
     </form>
   );
 }

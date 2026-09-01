@@ -32,6 +32,9 @@ export const VARSAYILAN = {
   eposta: "",
   calismaSaatleri: "Pazartesi – Cumartesi · 09:00 – 18:00",
 
+  // Formun yonlendirdigi WhatsApp hatti. Panelden degistirilebilir.
+  whatsapp: "0534 590 25 63",
+
   // --- Hakkimizda ---
   // Musteri istegiyle BOS birakildi; metin panelden (Icerik ekrani) girilecek.
   // Bos oldugunda /hakkimizda basligi "Hakkimizda"ya duser ve metin blogu hic
@@ -143,4 +146,49 @@ export const GELISTIRICI = {
 export function telLink(numara: string): string {
   const rakamlar = numara.replace(/\D/g, "");
   return rakamlar.startsWith("0") ? `+9${rakamlar}` : `+90${rakamlar}`;
+}
+
+/* ==========================================================================
+   WhatsApp "click to chat"
+   --------------------------------------------------------------------------
+   Iletisim formu sunucuya HIC ugramadan dogrudan WhatsApp'a yonleniyor.
+   Ne API anahtari, ne aylik gonderim kotasi, ne de bir e-posta saglayicisi
+   gerekiyor: wa.me herkese acik ve ucretsiz bir yonlendirme adresi.
+
+   Mesaji gonderen ziyaretcinin KENDI WhatsApp hesabi oldugu icin numarasi
+   mesaja zaten ilisik geliyor; forma ayrica telefon yazdirmaya gerek yok.
+   ========================================================================== */
+
+/**
+ * Yerel yazilmis bir numarayi wa.me'nin bekledigi bicime cevirir:
+ * sadece rakam, basinda ulke kodu, arti isareti ve bastaki sifir olmadan.
+ *
+ * Uc giris bicimi de ayni sonuca cikiyor:
+ *   "0534 590 25 63"  -> "905345902563"
+ *   "+90 534 590..."  -> "905345902563"
+ *   "534 590 25 63"   -> "905345902563"
+ *
+ * Yerel bir Turkiye numarasi hicbir zaman 9 ile baslamaz (cep 5, sabit hat
+ * 2/3/4 ile baslar), dolayisiyla "90" onekini ulke kodu saymak guvenli.
+ */
+export function whatsappNumara(numara: string): string {
+  const r = numara.replace(/\D/g, "");
+  if (r.startsWith("90")) return r;
+  if (r.startsWith("0")) return `9${r}`;
+  return `90${r}`;
+}
+
+/**
+ * Gonderime hazir WhatsApp baglantisi uretir.
+ *
+ * `encodeURIComponent` sart: metindeki satir sonu, & ve # gibi karakterler
+ * kodlanmazsa mesaj WhatsApp'a eksik gecer ya da adres tamamen bozulur.
+ */
+export function whatsappLink(numara: string, metin: string): string {
+  return `https://wa.me/${whatsappNumara(numara)}?text=${encodeURIComponent(metin)}`;
+}
+
+/** Formdaki alanlardan gonderilecek mesaj metnini kurar: ad, sonra mesaj. */
+export function whatsappMesaji(ad: string, mesaj: string): string {
+  return `${ad.trim()}\n${mesaj.trim()}`;
 }

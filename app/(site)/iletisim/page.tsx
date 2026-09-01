@@ -86,7 +86,7 @@ export default function Iletisim() {
           <h2 className="eyebrow mb-6 border-b border-[var(--color-rule)] pb-4">
             Mesaj gönderin
           </h2>
-          <IletisimFormu />
+          <IletisimFormu whatsapp={a.whatsapp} />
         </div>
       </div>
     </div>
