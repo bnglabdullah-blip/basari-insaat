@@ -50,7 +50,10 @@ export default function SiteFooter({
               height={81}
               className="h-6 w-auto"
             />
-            <p className="mt-8 max-w-sm text-[var(--color-paper)]/70">
+            <p
+              data-alan="ozet"
+              className="mt-8 max-w-sm text-[var(--color-paper)]/70"
+            >
               {ayarlar.ozet}
             </p>
           </div>
@@ -58,12 +61,18 @@ export default function SiteFooter({
           {/* Adres */}
           <div className="md:col-span-4 md:col-start-7">
             <h2 className="eyebrow text-[var(--color-paper)]/50">Ofis</h2>
+            {/* Adres ve ilce ayri <span>'lerde: onizlemede ikisi ayri ayri
+                duzenlenebilsin diye. Tek dugumde olsalardi tiklayan kisi
+                hangi forma alanini degistirdigini bilemezdi. */}
             <address className="mt-5 not-italic leading-relaxed text-[var(--color-paper)]/85">
-              {ayarlar.adres}
+              <span data-alan="adres">{ayarlar.adres}</span>
               <br />
-              {ayarlar.ilce}
+              <span data-alan="ilce">{ayarlar.ilce}</span>
             </address>
-            <p className="mt-5 text-sm text-[var(--color-paper)]/60">
+            <p
+              data-alan="calismaSaatleri"
+              className="mt-5 text-sm text-[var(--color-paper)]/60"
+            >
               {ayarlar.calismaSaatleri}
             </p>
           </div>
@@ -84,6 +93,7 @@ export default function SiteFooter({
             */}
             {ayarlar.eposta && (
               <a
+                data-alan="eposta"
                 href={`mailto:${ayarlar.eposta}`}
                 className="link-underline mt-5 inline-block text-sm text-[var(--color-paper)]/85"
               >

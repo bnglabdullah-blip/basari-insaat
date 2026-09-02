@@ -122,6 +122,43 @@ sessizce çalışmaz — silinen projelerin fotoğraf kayıtları öksüz olarak
 
 ---
 
+## Canlı önizleme (İçerik ekranı)
+
+`/admin/icerik` bölünmüş bir ekran: solda form, sağda sitenin gerçek
+önizlemesi. İki yönlü çalışır — forma yazdıkça önizleme güncellenir,
+önizlemedeki metne tıklayıp doğrudan düzenlerseniz formdaki alan güncellenir.
+Önizleme sayfası seçilebilir (ana sayfa, hakkımızda, iletişim, şirket
+bilgileri) ve mobil/tablet/tam genişlikte görüntülenebilir.
+
+**Hiçbir şey anında kaydedilmez.** Kalıcı değişiklik yalnızca "Kaydet"e
+basıldığında, mevcut `icerikKaydetAction` üzerinden olur.
+
+Nasıl çalışıyor:
+
+| Parça | İşi |
+|---|---|
+| `components/onizleme-koprusu.tsx` | Site tarafı. `iframe` içinde çalışır, metinleri düzenlenebilir yapar, değişikliği panele yollar. |
+| `components/admin/icerik-duzenleyici.tsx` | Panel tarafı. Bölünmüş yerleşim; form ile `iframe` arasında `postMessage` köprüsü. |
+| `data-alan="<anahtar>"` | Site şablonlarındaki işaretler. Hangi HTML düğümünün hangi ayar alanına karşılık geldiğini söyler. |
+
+**Sayfa HTML'i saklanmıyor.** İçerik veritabanında alan olarak duruyor;
+düzenlenen şey ekrandaki HTML değil, o alanın değeri. Bileşenler her istekte
+yeniden basıldığı için tasarım değişiklikleri içerikle çakışmaz.
+
+Köprü iki kapıdan geçiyor: sunucu betiği yalnızca **oturum açıkken** sayfaya
+koyuyor (ziyaretçinin aldığı HTML'de izi yok), betik de yalnızca **panelin
+`iframe`i içinde** kendini bağlıyor. Yönetici siteyi normal gezerken metinler
+tıklanınca düzenlenebilir hale gelmez.
+
+Yeni bir alanı önizlemede düzenlenebilir yapmak için, siteyi basan bileşende
+o değeri gösteren elemana `data-alan="<ayar anahtarı>"` eklemek yeterli. Çok
+paragraflı alanlarda `data-alan-tip="paragraf"` de eklenir.
+
+> `data-alan` işaretleri herkese giden HTML'de de var; davranış taşımadıkları
+> için zararsızlar, önizleme betiği olmadan hiçbir şey yapmazlar.
+
+---
+
 ## Güvenlik
 
 Sitede dikkat edilmiş noktalar ve sebepleri:

@@ -1,6 +1,8 @@
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import YapisalVeri from "@/components/yapisal-veri";
+import OnizlemeKoprusu from "@/components/onizleme-koprusu";
+import { onizlemeYetkisi } from "@/lib/auth";
 import { ayarlariGetir } from "@/lib/queries";
 
 /*
@@ -16,15 +18,23 @@ import { ayarlariGetir } from "@/lib/queries";
  */
 export const dynamic = "force-dynamic";
 
-export default function SiteLayout({
+export default async function SiteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const ayarlar = ayarlariGetir();
 
+  /*
+   * Duzenleme koprusu YALNIZCA oturum acikken sayfaya giriyor. Ziyaretcinin
+   * aldigi HTML'de bu betikten eser yok; "gizle ama gonder" degil, hic
+   * gondermemek.
+   */
+  const yonetici = await onizlemeYetkisi();
+
   return (
     <>
+      {yonetici && <OnizlemeKoprusu />}
       <YapisalVeri
         ayarlar={ayarlar}
         siteUrl={process.env.SITE_URL ?? "https://basariinsaat.com"}

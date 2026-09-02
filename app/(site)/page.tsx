@@ -61,7 +61,10 @@ export default function AnaSayfa() {
         </h1>
 
         <div className="enter enter-3 mt-14 grid gap-10 border-t border-[var(--color-rule)] pt-8 md:mt-20 md:grid-cols-12">
-          <p className="max-w-xl text-lg leading-relaxed text-[var(--color-muted)] md:col-span-6 md:col-start-7">
+          <p
+            data-alan="ozet"
+            className="max-w-xl text-lg leading-relaxed text-[var(--color-muted)] md:col-span-6 md:col-start-7"
+          >
             {ayarlar.ozet}
           </p>
 
@@ -198,7 +201,10 @@ export default function AnaSayfa() {
 
           <div className="relative border-t border-[var(--color-rule)] pt-16 md:pt-20">
             <div className="grid gap-12 md:grid-cols-12">
-              <h2 className="font-display reveal text-[length:var(--text-display)] md:col-span-6">
+              <h2
+                data-alan="hakkindaBaslik"
+                className="font-display reveal text-[length:var(--text-display)] md:col-span-6"
+              >
                 {ayarlar.hakkindaBaslik}
               </h2>
               <div className="reveal-late space-y-6 text-lg leading-relaxed text-[var(--color-muted)] md:col-span-5 md:col-start-8">
@@ -302,17 +308,21 @@ export default function AnaSayfa() {
               Ofis
             </h3>
             <address className="mt-4 not-italic leading-relaxed text-[var(--color-muted)]">
-              {ayarlar.adres}
+              <span data-alan="adres">{ayarlar.adres}</span>
               <br />
-              {ayarlar.ilce}
+              <span data-alan="ilce">{ayarlar.ilce}</span>
             </address>
-            <p className="mt-4 text-sm text-[var(--color-muted)]">
+            <p
+              data-alan="calismaSaatleri"
+              className="mt-4 text-sm text-[var(--color-muted)]"
+            >
               {ayarlar.calismaSaatleri}
             </p>
 
             {/* E-posta yalnizca panelde doluysa basiliyor. */}
             {ayarlar.eposta && (
               <a
+                data-alan="eposta"
                 href={`mailto:${ayarlar.eposta}`}
                 className="link-underline mt-4 inline-block text-sm text-[var(--color-navy)]"
               >

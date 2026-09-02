@@ -125,6 +125,23 @@ export async function oturumAcikMi(): Promise<boolean> {
 }
 
 /**
+ * Panel onizlemesi icin yetki kontrolu — HATA FIRLATMAZ.
+ *
+ * oturumAcikMi(), OTURUM_ANAHTARI tanimsizsa bilerek hata firlatir; panelde
+ * dogru davranis budur. Ancak bu kontrol PUBLIC site duzeninden de cagriliyor
+ * ve orada ayni hata, yanlis yapilandirilmis tek bir ortam degiskeni yuzunden
+ * sitenin TAMAMINI dusururdu. Onizleme bir panel kolayligi; yoklugu siteyi
+ * bozmamali. Bu yuzden hata durumunda "yetki yok" deyip geciyoruz.
+ */
+export async function onizlemeYetkisi(): Promise<boolean> {
+  try {
+    return await oturumAcikMi();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Yetkisiz erisimde giris sayfasina yonlendirir.
  *
  * !!! HER SERVER ACTION KENDI ICINDE BUNU CAGIRMAK ZORUNDA !!!

@@ -25,14 +25,24 @@ export default function Hakkimizda() {
           bir sayfanın h1'siz kalması hem ekran okuyucu için hem arama motoru
           için kırıktır, dekoratif bir eksiklik değildir.
         */}
-        <h1 className="font-display enter enter-2 mt-6 max-w-4xl text-[length:var(--text-display)]">
+        <h1
+          data-alan="hakkindaBaslik"
+          className="font-display enter enter-2 mt-6 max-w-4xl text-[length:var(--text-display)]"
+        >
           {ayarlar.hakkindaBaslik || "Hakkımızda"}
         </h1>
 
         {/* Metin girilmemişse blok hiç basılmıyor — boş bir çizgi kalmıyor. */}
         {ayarlar.hakkindaMetin && (
           <div className="enter enter-3 mt-16 grid gap-10 border-t border-[var(--color-rule)] pt-10 md:grid-cols-12">
-            <div className="space-y-6 text-lg leading-relaxed md:col-span-7 md:col-start-6">
+            {/* Paragraflarin TAMAMI burada basiliyor; panel onizlemesi de
+                metni bu sayfada duzenletiyor (ana sayfada ilk iki paragrafla
+                sinirli oldugu icin orada duzenlemek yaniltici olurdu). */}
+            <div
+              data-alan="hakkindaMetin"
+              data-alan-tip="paragraf"
+              className="space-y-6 text-lg leading-relaxed md:col-span-7 md:col-start-6"
+            >
               {ayarlar.hakkindaMetin.split("\n\n").map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
