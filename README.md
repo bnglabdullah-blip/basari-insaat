@@ -2,8 +2,156 @@
 
 Eskişehir merkezli Başarı İnşaat'ın kurumsal web sitesi ve yönetim paneli.
 
-- **Site:** ana sayfa, projeler, proje detay + fotoğraf galerisi, hakkımızda, iletişim
-- **Panel:** `/admin` — projeler, fotoğraflar, gelen mesajlar, site metinleri, iletişim bilgileri
+- **Site:** ana sayfa, projeler, proje detay + fotoğraf galerisi, hakkımızda, şirket bilgileri, iletişim
+- **Panel:** `/admin` — projeler, fotoğraflar, site metinleri, iletişim bilgileri, parola
+
+Site tek bir Node.js sürecinde çalışır, verisini yanındaki bir SQLite dosyasında
+tutar ve fotoğrafları diske yazar. Harici hiçbir servise bağlı değildir:
+veritabanı sunucusu, nesne deposu, e-posta sağlayıcısı, kimlik doğrulama servisi
+yok. Bunun tek bir sebebi var — **teslimden sonra kimsenin bakması gereken bir
+parça kalmasın.**
+
+---
+
+## Teknoloji seçimleri
+
+| Ne | Neden |
+|---|---|
+| **Next.js 16 (App Router)** | Sunucu bileşenleri sayesinde veri okuması doğrudan sayfa içinde yapılıyor; ayrı bir API katmanı yok. Server Actions form gönderimlerini de aynı şekilde karşılıyor. |
+| **React 19** | Next 16'nın gerektirdiği sürüm. `useActionState` / `useFormStatus` panel formlarının tamamını istemci tarafı state yönetimi olmadan çalıştırıyor. |
+| **TypeScript** | Veritabanı satırları ile arayüz arasındaki tip uyuşmazlıklarını derlemede yakalıyor. |
+| **SQLite (better-sqlite3)** | Tek dosya, tek süreç, sıfır yönetim. Yedeklemek dosyayı kopyalamaktan ibaret. Senkron API olduğu için sunucu bileşenlerinde `await` zinciri kurmaya gerek kalmıyor. |
+| **Tailwind CSS 4** | PostCSS eklentisi olarak çalışıyor, ayrı yapılandırma dosyası yok. Renkler ve tipografi `app/globals.css` içindeki CSS değişkenlerinde. |
+| **sharp** | Yüklenen fotoğrafları kaydetmeden önce küçültüp WebP'ye çeviriyor ve EXIF verisini (GPS dahil) düşürüyor. |
+| **node:crypto** | Parola özeti (scrypt) ve oturum jetonu imzalama (HMAC). Kimlik doğrulama için kütüphane yok. |
+| **node:test** | Testler Node'un gömülü test koşucusuyla çalışıyor; Jest/Vitest kurulumu yok. |
+
+### Bilinçli olarak kullanılmayanlar
+
+| Yok | Yerine | Neden |
+|---|---|---|
+| ORM (Prisma/Drizzle) | düz SQL | 4 tablo ve sabit bir şema için migration altyapısı, kod üretimi ve ekstra build adımı gereksiz |
+| NextAuth / Auth.js | `node:crypto`, ~40 satır | tek admin kullanıcı, tek parola — OAuth sağlayıcı, kullanıcı tablosu, oturum deposu yok |
+| Ayrı veritabanı sunucusu | SQLite dosyası | ikinci bir servis, ikinci bir fatura, ikinci bir arıza noktası |
+| S3 / Blob servisi | disk + kalıcı volume | fotoğraflar veritabanının yanındaki klasörde; ikisi tek yedeğe giriyor |
+| E-posta sağlayıcısı | WhatsApp yönlendirmesi | aylık kota, alan adı doğrulaması, spam kutusu sorunu yok |
+| Animasyon kütüphanesi | CSS `animation-timeline` | native, 0 KB |
+| Google Maps SDK | `<iframe>` gömme | API anahtarı ve kota yok |
+| Durum yönetimi (Redux/Zustand) | sunucu bileşenleri + `useActionState` | paylaşılacak istemci state'i neredeyse yok |
+
+---
+
+## Dizin yapısı
+
+```
+app/
+  (site)/                  ziyaretçiye açık sayfalar — header/footer bu grubun layout'unda
+    page.tsx               ana sayfa
+    projeler/              liste + [slug] detay sayfası (galeri)
+    hakkimizda/
+    sirket-bilgilerimiz/
+    iletisim/
+  admin/
+    giris/                 parola ekranı — panel kabuğunun DIŞINDA
+    (panel)/               giriş yapılmış alan; layout'u yetki kontrolü yapar
+      page.tsx             özet
+      projeler/            liste, yeni, [id] düzenle
+      mesajlar/            eski mesaj kayıtları
+      icerik/              site metinleri, iletişim bilgileri, parola
+      */actions.ts         o ekrana ait Server Action'lar
+  layout.tsx               kök: fontlar, meta, globals.css
+  sitemap.ts robots.ts     dinamik SEO çıktıları
+  not-found.tsx
+
+lib/
+  db.ts                    SQLite bağlantısı + şema (CREATE TABLE'lar burada)
+  queries.ts               TÜM SQL burada — başka hiçbir dosyada sorgu yok
+  oturum.ts                saf kripto: parola özeti, jeton imzalama (Next'ten bağımsız)
+  auth.ts                  Next'e bağlı katman: çerez, yönlendirme, hız sınırı
+  yukleme.ts               fotoğraf doğrulama, küçültme, diske yazma
+  icerik.ts                düzenlenebilir metinlerin VARSAYILAN değerleri
+  metin.ts                 Türkçe slug üretimi, tarih biçimleme
+  vitrin.ts                vitrin fotoğraflarının sayfalara dağıtılması
+  *.test.ts                testler kendi modüllerinin yanında
+
+components/
+  site-header/footer, galeri, gorsel, iletisim-formu, yapisal-veri
+  admin/                   panel formları (proje, galeri, içerik, parola)
+
+scripts/parola.mjs         parola özeti ve oturum anahtarı üretir
+Dockerfile compose.yaml    dağıtım
+```
+
+### Neden route grupları
+
+`app/(site)` ve `app/admin/(panel)` parantezli klasörler — URL'e girmezler,
+sadece **layout paylaşımı** sağlarlar. Böylece panel, sitenin header/footer'ını
+miras almaz ve `/admin/giris` de panelin yetki kontrolü yapan layout'unun
+dışında kalır. Giriş sayfası o layout'un içinde olsaydı, giriş yapmak için
+giriş yapmış olmak gerekirdi.
+
+### Neden `lib/oturum.ts` ile `lib/auth.ts` ayrı
+
+`oturum.ts` saf fonksiyonlardan oluşur — `next/headers` import etmez, bu yüzden
+düz Node'da test edilebilir. `auth.ts` ise çerez okur, yönlendirme yapar,
+veritabanına bakar. Kriptografi mantığı test edilebilir tarafta, çerçeveye bağlı
+kısım ayrı.
+
+---
+
+## Veri modeli
+
+Dört tablo, tamamı `lib/db.ts` içinde tanımlı:
+
+| Tablo | İçerik |
+|---|---|
+| `projeler` | başlık, slug, konum, durum, yıl, özet, açıklama, kapak, sıra, yayında |
+| `proje_gorseller` | proje fotoğrafları; `ON DELETE CASCADE` ile projeye bağlı |
+| `mesajlar` | eski iletişim formundan kalan kayıtlar (aşağıya bakın) |
+| `ayarlar` | `anahtar/değer` — panelden düzenlenen metinler ve parola özeti |
+
+Şema `CREATE TABLE IF NOT EXISTS` ile her açılışta çalışır; migration aracı yok.
+Sütun eklemek gerekirse `db.ts` içine bir `ALTER TABLE` eklemek yeterli.
+
+**Yabancı anahtarlar her bağlantıda elle açılıyor** (`PRAGMA foreign_keys = ON`).
+SQLite'ta bu ayar varsayılan olarak kapalıdır ve açılmazsa `ON DELETE CASCADE`
+sessizce çalışmaz — silinen projelerin fotoğraf kayıtları öksüz olarak birikirdi.
+
+> **`mesajlar` tablosu hakkında:** iletişim formu artık sunucuya hiç uğramıyor,
+> ziyaretçinin kendi WhatsApp'ını açıyor. Yani bu tabloya **yeni satır
+> girmiyor**; panel yalnızca form değişikliğinden önce gelmiş kayıtları
+> gösteriyor. `queries.ts` içindeki `mesajEkle()` bugün hiçbir yerden
+> çağrılmıyor.
+
+---
+
+## Güvenlik
+
+Sitede dikkat edilmiş noktalar ve sebepleri:
+
+- **Parola düz metin olarak hiçbir yerde yok.** scrypt ile özetleniyor,
+  karşılaştırma `timingSafeEqual` ile yapılıyor (zamanlama saldırısına kapalı).
+- **Oturum jetonu HMAC ile imzalı**, çerez `httpOnly` + `sameSite=lax`
+  (üretimde `secure`), 12 saat ömürlü.
+- **Her Server Action kendi içinde `yetkiGerekli()` çağırıyor.** Server
+  action'lar layout hiyerarşisinden bağımsız çalışır: Next bunları, action
+  kimliğini bilen herkesin doğrudan POST edebileceği uç noktalar olarak
+  yayınlar. Kontrolü yalnızca layout'a bırakmak App Router'da en sık yapılan
+  güvenlik hatasıdır.
+- **Fotoğraf türü magic byte ile doğrulanıyor**, tarayıcının bildirdiği
+  `Content-Type` başlığına göre değil — o başlık tamamen istemci
+  kontrolündedir.
+- **Dosya adı tamamen sunucuda üretiliyor.** Kullanıcının verdiği ad yola hiç
+  karışmıyor; bu, dizin gezinme (`../../`) saldırılarını ad temizlemeye
+  çalışmadan imkânsız kılıyor.
+- **EXIF verisi düşürülüyor** — telefon fotoğrafları GPS koordinatı taşır.
+- **Veritabanı `public/` dışında.** `public/` altındaki her şey statik olarak
+  sunulur; `basari.db` oraya konsaydı tüm kayıtlar internetten indirilebilirdi.
+- **Panel formuna gelen alanlar beyaz listeye göre süzülüyor**
+  (`VARSAYILAN` anahtarları). Parola özeti bilerek bu listenin **dışında**
+  tutuluyor: `ayarlariGetir()` sonucu istemci bileşenlerine kadar gidiyor,
+  anahtar listede olsaydı özet her sayfa render'ında tarayıcıya gönderilirdi.
+- **Giriş hız sınırı:** 15 dakikada 8 deneme (bellek içi, süreç başına).
 
 ---
 
@@ -19,28 +167,35 @@ Parola ve oturum anahtarı üretin:
 npm run parola -- "secilen-parolaniz"
 ```
 
-Çıkan iki satırı `.env.local` dosyasına yapıştırın (`.env.example` dosyasını örnek alın).
-Sonra:
+Çıkan iki satırı `.env.local` dosyasına yapıştırın (`.env.example` dosyasını
+örnek alın). Sonra:
 
 ```bash
 npm run dev
 ```
 
 Site `http://localhost:3000`, panel `http://localhost:3000/admin` adresinde.
+Veritabanı ilk çalıştırmada `data/basari.db` olarak kendiliğinden oluşur.
 
 ---
 
-## Yayına alma (VPS + Docker)
+## Yayına alma
 
-Sunucuda `.env` dosyası oluşturun:
+Uygulama bir Docker imajı olarak paketleniyor. Aynı imaj Railway, Render,
+Fly.io veya kendi VPS'inizde çalışır.
 
-```
-ADMIN_PAROLA_HASH=...
-OTURUM_ANAHTARI=...
-SITE_URL=https://basariinsaat.com
-```
+### Ortam değişkenleri
 
-Sonra:
+| Değişken | Zorunlu | Açıklama |
+|---|---|---|
+| `ADMIN_PAROLA_HASH` | ilk kurulumda | `npm run parola` çıktısı. Panelden parola değiştirildikten sonra devre dışı kalır, silinebilir. |
+| `OTURUM_ANAHTARI` | evet | En az 32 karakter. Değiştirilirse açık tüm oturumlar düşer. |
+| `SITE_URL` | evet | Sitemap, robots.txt ve paylaşım önizlemeleri bunu kullanır. |
+| `DB_YOLU` | hayır | Docker imajında `/app/veri/basari.db` olarak sabitlenmiştir. |
+
+### Docker Compose (VPS)
+
+Sunucuda bir `.env` dosyası oluşturup:
 
 ```bash
 docker compose up -d --build
@@ -49,24 +204,55 @@ docker compose up -d --build
 Site `3000` portunda çalışır. Önüne HTTPS sonlandırması yapan bir ters vekil
 (Caddy, Nginx veya Coolify) koyun.
 
-### ⚠️ Volume'ler hakkında
+### ⚠️ Kalıcı disk — veri kaybını önleyen tek şey
 
-`compose.yaml` içindeki iki volume **veri kaybını önleyen tek şeydir**:
+Konteyner içi dosya sistemi her yeniden dağıtımda sıfırlanır. Tüm kalıcı veri
+**tek bir klasörde** toplanmıştır:
 
-| Volume | İçerik |
-|---|---|
-| `basari-veri` → `/app/data` | Projeler, mesajlar, ayarlar (SQLite) |
-| `basari-fotograflar` → `/app/public/uploads` | Yüklenen tüm fotoğraflar |
+```
+/app/veri/basari.db     projeler, ayarlar, parola
+/app/veri/uploads       yüklenen fotoğraflar
+```
 
-Bunlar kaldırılırsa her `--build` işleminde tüm içerik silinir.
+`public/uploads`, `/app/veri/uploads` klasörüne bir **symlink**'tir. Sebebi:
+Railway, Render ve Fly.io servis başına **tek** kalıcı disk veriyor; ayrı ayrı
+`/app/data` + `/app/public/uploads` bağlamak bu platformlarda mümkün değil,
+biri mutlaka volume'süz kalır ve her dağıtımda silinir.
+
+`compose.yaml` içindeki `basari-veri:/app/veri` satırı ya da platformdaki
+karşılığı kaldırılırsa **tüm içerik her güncellemede silinir.**
+
+> Volume'ü asla `public/uploads` üzerine bağlamayın — veritabanı o klasörün
+> içine düşerse internetten indirilebilir hale gelir.
+
+### Railway / Render
+
+1. Depoyu bağlayın; platform `Dockerfile`'ı kendiliğinden kullanır.
+2. Yukarıdaki ortam değişkenlerini girin.
+3. **`/app/veri` yoluna kalıcı disk (volume) ekleyin.**
+4. İlk girişten sonra panelden (`/admin/icerik`) parolayı değiştirin;
+   ardından `ADMIN_PAROLA_HASH` değişkeni silinebilir.
+
+> Volume, konteynerdeki `basari` kullanıcısına (uid 1001) ait olmalıdır.
+> Platform diski root'a ait olarak bağlıyorsa `RAILWAY_RUN_UID=0` gerekebilir.
+
+### Neden sunucusuz (Netlify/Vercel) değil
+
+Bu uygulama diske yazıyor: veritabanı ve fotoğraflar. Sunucusuz platformlarda
+dosya sistemi geçicidir — panel "Kaydedildi" der, veri o isteğin sonunda
+kaybolur. Arıza sessiz olduğu için en kötü türden. Ücretsiz katmana geçmek,
+veritabanını barındırılan bir servise ve fotoğrafları bir nesne deposuna
+taşımayı, yani `lib/queries.ts` içindeki senkron sorguların tamamını ve
+`lib/yukleme.ts` dosyasını yeniden yazmayı gerektirir.
 
 ### Yedekleme
 
 ```bash
-docker compose exec site tar czf - /app/data /app/public/uploads > yedek-$(date +%F).tar.gz
+docker compose exec site tar czf - /app/veri > yedek-$(date +%F).tar.gz
 ```
 
-SQLite tek dosyadır; yedeklemek onu kopyalamaktan ibarettir.
+Tek klasör hem veritabanını hem fotoğrafları içerir. SQLite tek dosyadır;
+yedeklemek onu kopyalamaktan ibarettir.
 
 ---
 
@@ -76,54 +262,44 @@ SQLite tek dosyadır; yedeklemek onu kopyalamaktan ibarettir.
 npm test
 ```
 
-Kapsam: parola doğrulama, oturum jetonu imzalama (kurcalama ve süre aşımı dahil),
-Türkçe karakterli başlıklardan URL üretimi.
+34 test, Node'un gömülü koşucusuyla. Kapsam:
 
----
+- **`oturum.test.ts`** — parola doğrulama, jeton imzalama, kurcalanmış jeton, süre aşımı
+- **`yukleme.test.ts`** — magic byte kontrolü, küçültme, WebP çıktısı, EXIF/GPS temizliği, bozuk dosya
+- **`metin.test.ts`** — Türkçe slug (özellikle noktasız `ı` tuzağı)
+- **`vitrin.test.ts`** — fotoğraf yuvası dağıtımı
+- **`icerik.test.ts`** — varsayılan içerik ve WhatsApp bağlantısı
 
-## Yapı
-
-```
-app/
-  (site)/        public sayfalar — header/footer bu grupta
-  admin/         yönetim paneli (site kabuğunu miras almaz)
-lib/
-  db.ts          SQLite bağlantısı + şema
-  queries.ts     tüm SQL burada
-  oturum.ts      saf kripto (test edilebilir, Next'ten bağımsız)
-  auth.ts        Next'e bağlı kimlik doğrulama
-  yukleme.ts     fotoğraf yükleme + doğrulama
-  icerik.ts      varsayılan metinler ve iletişim bilgileri
-components/      arayüz bileşenleri
-```
-
-### Bilinçli olarak kullanılmayanlar
-
-| Yok | Yerine | Neden |
-|---|---|---|
-| ORM (Prisma/Drizzle) | düz SQL | 4 tablo için migration altyapısı gereksiz |
-| NextAuth | `node:crypto`, ~30 satır | tek admin kullanıcı |
-| Animasyon kütüphanesi | CSS `animation-timeline` | native, 0 KB |
-| Google Maps SDK | `<iframe>` gömme | API anahtarı ve kota yok |
-| reCAPTCHA | honeypot alanı | erişilebilirlik sorunu çıkarmaz |
-| S3 / Blob servisi | disk + volume | VPS'te dosya sistemi zaten kalıcı |
+Veritabanına ve `next/headers`'a bağlı kod (`auth.ts`, `queries.ts`) burada
+değil: ağır mock gerektirir, karşılığında az şey kanıtlar.
 
 ---
 
 ## Bakım notları
 
 **İçerik değişiklikleri kod gerektirmez.** Telefon, adres, hakkımızda metni ve
-ana sayfa tanıtımı panelden `/admin/icerik` üzerinden düzenlenir. Bir alan
-boş bırakılırsa `lib/icerik.ts` içindeki varsayılana döner — yanlışlıkla
-silinen bir telefon numarası siteden kaybolmaz.
+ana sayfa tanıtımı panelden `/admin/icerik` üzerinden düzenlenir. Bir alan boş
+bırakılırsa `lib/icerik.ts` içindeki varsayılana döner — yanlışlıkla silinen bir
+telefon numarası siteden kaybolmaz.
+
+**Parola panelden değiştirilir** (`/admin/icerik` altında). Değiştirildiği anda
+özet veritabanına yazılır ve `ADMIN_PAROLA_HASH` ortam değişkeni artık dikkate
+alınmaz. Mevcut parola tekrar sorulur: açık bırakılmış bir panelin başına geçen
+biri, sahibini kendi sitesinden kilitleyemesin diye.
 
 **Hizmet listesi ve rakamlar** `lib/icerik.ts` içinde sabittir (nadiren değişir).
 Değiştirmek için o dosyayı düzenleyip yeniden dağıtın.
 
-**Fotoğraf boyutu:** yüklenen dosyalar olduğu gibi saklanır; `next/image`
-gösterim anında küçültüp önbelleğe alır. Yükleme sınırı dosya başına 15 MB
-(`lib/yukleme.ts`), tek seferde toplam 60 MB (`next.config.ts`).
+**Fotoğraflar yüklenirken işlenir:** en fazla 1600 px genişliğe küçültülür,
+WebP'ye çevrilir, EXIF verisi silinir. Küçük bir fotoğraf büyütülmez. Yükleme
+sınırı dosya başına 15 MB (`lib/yukleme.ts`), tek seferde toplam 60 MB
+(`next.config.ts`).
 
-**Next.js yükseltirken:** `package.json` içindeki `overrides` bloğunu kontrol edin.
-`sharp` ve `postcss` sürümleri, Next'in içinde gelen açıklı sürümleri ezmek için
-sabitlenmiş durumda; yeni Next sürümü bunları zaten güncellemişse blok kaldırılabilir.
+**Next.js yükseltirken:** `package.json` içindeki `overrides` bloğunu kontrol
+edin. `sharp` ve `postcss` sürümleri, Next'in içinde gelen açıklı sürümleri
+ezmek için sabitlenmiş durumda; yeni Next sürümü bunları zaten güncellemişse
+blok kaldırılabilir.
+
+**Sunucu birden fazla kopya olarak çalıştırılırsa** iki yer gözden geçirilmeli:
+giriş hız sınırı bellek içidir (kopya başına ayrı sayar) ve SQLite tek diske
+bağlıdır. Bu site için tek kopya yeterli.
