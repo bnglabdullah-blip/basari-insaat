@@ -6,20 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test \"lib/**/*.test.ts\"",
+    "test": "node --conditions=react-server --test \"lib/**/*.test.ts\"",
     "parola": "node scripts/parola.mjs"
   },
-  "comment-overrides": "Next 16 icinde sharp@0.34.5 (libvips CVE-2026-33327/33328/35590/35591) ve postcss@8.4.31 (source-map path traversal) gomulu geliyor. 'npm audit fix' bunlar icin Next'i 9.3.3'e dusurmeyi onerir - kabul edilemez. Bunun yerine guvenli surumler zorlaniyor. Next yukseltilirken bu overrides'in hala gerekli olup olmadigi kontrol edilmeli.",
+  "comment-overrides": "Next 16 icinde sharp (libvips CVE-2026-33327/33328/35590/35591) ve postcss@8.4.31 (source-map path traversal) gomulu geliyor. 'npm audit fix' bunlar icin Next'i 9.3.3'e dusurmeyi onerir - kabul edilemez. Bunun yerine guvenli surumler zorlaniyor. sharp ayrica DOGRUDAN bagimlilik: lib/yukleme.ts gorselleri yuklemede kucultmek icin kullaniyor, dolayisiyla override ile dependencies ayni araligi tutmali. Next yukseltilirken bu overrides'in hala gerekli olup olmadigi kontrol edilmeli.",
   "overrides": {
-    "sharp": "^0.35.3",
-    "postcss": "^8.5.25"
+    "sharp": "^0.35.4",
+    "postcss": "^8.5.25",
+    "nanoid": "^3.3.18"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.2",
     "next": "^16.2.12",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

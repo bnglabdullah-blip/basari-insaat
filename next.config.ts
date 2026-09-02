@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   // Docker imajinin kucuk kalmasi icin: sadece gercekten kullanilan dosyalar kopyalanir.
   output: "standalone",
   // better-sqlite3 native bir modul; Next'in onu bundle etmeye calismasi derlemeyi bozar.
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["better-sqlite3", "sharp"],
 
   experimental: {
     /*
