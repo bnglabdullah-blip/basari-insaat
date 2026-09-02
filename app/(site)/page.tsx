@@ -309,6 +309,16 @@ export default function AnaSayfa() {
             <p className="mt-4 text-sm text-[var(--color-muted)]">
               {ayarlar.calismaSaatleri}
             </p>
+
+            {/* E-posta yalnizca panelde doluysa basiliyor. */}
+            {ayarlar.eposta && (
+              <a
+                href={`mailto:${ayarlar.eposta}`}
+                className="link-underline mt-4 inline-block text-sm text-[var(--color-navy)]"
+              >
+                {ayarlar.eposta}
+              </a>
+            )}
           </div>
         </div>
       </section>

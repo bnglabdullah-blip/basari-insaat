@@ -76,6 +76,20 @@ export default function SiteFooter({
               <Yetkili tel={ayarlar.yetkili1Tel} />
               <Yetkili tel={ayarlar.yetkili2Tel} />
             </div>
+
+            {/*
+              E-posta yalnizca panelde doluysa basiliyor. Bos bir "E-posta"
+              basligi ya da bos adrese giden bir mailto: baglantisi, hic
+              gostermemekten kotudur.
+            */}
+            {ayarlar.eposta && (
+              <a
+                href={`mailto:${ayarlar.eposta}`}
+                className="link-underline mt-5 inline-block text-sm text-[var(--color-paper)]/85"
+              >
+                {ayarlar.eposta}
+              </a>
+            )}
           </div>
         </div>
 
