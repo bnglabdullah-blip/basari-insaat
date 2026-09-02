@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { yetkiGerekli } from "@/lib/auth";
-import { okunmamisSayisi } from "@/lib/queries";
 import { cikisAction } from "../actions";
 
 // Panel her zaman canli veri gostermeli; onbellekten servis edilmemeli.
@@ -10,7 +9,6 @@ export const dynamic = "force-dynamic";
 const PANEL_MENU = [
   { yol: "/admin", ad: "Özet" },
   { yol: "/admin/projeler", ad: "Projeler" },
-  { yol: "/admin/mesajlar", ad: "Mesajlar" },
   { yol: "/admin/icerik", ad: "İçerik" },
 ];
 
@@ -23,8 +21,6 @@ export default async function PanelLayout({
   // her action kendi icinde yetkiGerekli() cagirir. Ayrintili aciklama
   // lib/auth.ts icinde.
   await yetkiGerekli();
-
-  const okunmamis = okunmamisSayisi();
 
   return (
     <div className="min-h-screen">
@@ -48,11 +44,6 @@ export default async function PanelLayout({
                 className="link-underline text-sm font-medium"
               >
                 {m.ad}
-                {m.yol === "/admin/mesajlar" && okunmamis > 0 && (
-                  <span className="tabular ml-2 inline-block rounded-full bg-[var(--color-clay)] px-2 py-0.5 text-xs text-white">
-                    {okunmamis}
-                  </span>
-                )}
               </Link>
             ))}
           </nav>

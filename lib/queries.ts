@@ -35,16 +35,6 @@ export type ProjeGorsel = {
   sira: number;
 };
 
-export type Mesaj = {
-  id: number;
-  ad: string;
-  telefon: string;
-  eposta: string;
-  mesaj: string;
-  okundu: number;
-  olusturma: string;
-};
-
 /* ==========================================================================
    Projeler
    ========================================================================== */
@@ -217,45 +207,6 @@ function kapakTazele(projeId: number): void {
 }
 
 export { kapakTazele };
-
-/* ==========================================================================
-   Mesajlar
-   ========================================================================== */
-
-export function mesajEkle(v: {
-  ad: string;
-  telefon: string;
-  eposta: string;
-  mesaj: string;
-}): void {
-  db.prepare(
-    "INSERT INTO mesajlar (ad, telefon, eposta, mesaj) VALUES (@ad, @telefon, @eposta, @mesaj)"
-  ).run(v);
-}
-
-export function mesajlariGetir(): Mesaj[] {
-  return db
-    .prepare("SELECT * FROM mesajlar ORDER BY okundu ASC, olusturma DESC")
-    .all() as Mesaj[];
-}
-
-export function okunmamisSayisi(): number {
-  const r = db
-    .prepare("SELECT COUNT(*) AS n FROM mesajlar WHERE okundu = 0")
-    .get() as { n: number };
-  return r.n;
-}
-
-export function mesajOkunduIsaretle(id: number, okundu: boolean): void {
-  db.prepare("UPDATE mesajlar SET okundu = ? WHERE id = ?").run(
-    okundu ? 1 : 0,
-    id
-  );
-}
-
-export function mesajSil(id: number): void {
-  db.prepare("DELETE FROM mesajlar WHERE id = ?").run(id);
-}
 
 /* ==========================================================================
    Ayarlar (site metinleri + iletişim bilgileri)

@@ -56,7 +56,6 @@ app/
     (panel)/               giriş yapılmış alan; layout'u yetki kontrolü yapar
       page.tsx             özet
       projeler/            liste, yeni, [id] düzenle
-      mesajlar/            eski mesaj kayıtları
       icerik/              site metinleri, iletişim bilgileri, parola
       */actions.ts         o ekrana ait Server Action'lar
   layout.tsx               kök: fontlar, meta, globals.css
@@ -101,13 +100,12 @@ kısım ayrı.
 
 ## Veri modeli
 
-Dört tablo, tamamı `lib/db.ts` içinde tanımlı:
+Üç tablo, tamamı `lib/db.ts` içinde tanımlı:
 
 | Tablo | İçerik |
 |---|---|
 | `projeler` | başlık, slug, konum, durum, yıl, özet, açıklama, kapak, sıra, yayında |
 | `proje_gorseller` | proje fotoğrafları; `ON DELETE CASCADE` ile projeye bağlı |
-| `mesajlar` | eski iletişim formundan kalan kayıtlar (aşağıya bakın) |
 | `ayarlar` | `anahtar/değer` — panelden düzenlenen metinler ve parola özeti |
 
 Şema `CREATE TABLE IF NOT EXISTS` ile her açılışta çalışır; migration aracı yok.
@@ -117,11 +115,10 @@ Sütun eklemek gerekirse `db.ts` içine bir `ALTER TABLE` eklemek yeterli.
 SQLite'ta bu ayar varsayılan olarak kapalıdır ve açılmazsa `ON DELETE CASCADE`
 sessizce çalışmaz — silinen projelerin fotoğraf kayıtları öksüz olarak birikirdi.
 
-> **`mesajlar` tablosu hakkında:** iletişim formu artık sunucuya hiç uğramıyor,
-> ziyaretçinin kendi WhatsApp'ını açıyor. Yani bu tabloya **yeni satır
-> girmiyor**; panel yalnızca form değişikliğinden önce gelmiş kayıtları
-> gösteriyor. `queries.ts` içindeki `mesajEkle()` bugün hiçbir yerden
-> çağrılmıyor.
+> **Mesaj tablosu neden yok:** iletişim formu sunucuya hiç uğramıyor,
+> ziyaretçinin kendi WhatsApp'ını açıyor. Mesajlar WhatsApp'ta durduğu için
+> sitede saklanacak bir şey kalmıyor. Eskiden var olan `mesajlar` tablosu ve
+> panel ekranı bu yüzden kaldırıldı.
 
 ---
 

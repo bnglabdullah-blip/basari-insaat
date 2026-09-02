@@ -70,17 +70,6 @@ function baglantiAc(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_gorsel_proje ON proje_gorseller(proje_id, sira);
 
-    CREATE TABLE IF NOT EXISTS mesajlar (
-      id        INTEGER PRIMARY KEY AUTOINCREMENT,
-      ad        TEXT    NOT NULL,
-      telefon   TEXT    NOT NULL DEFAULT '',
-      eposta    TEXT    NOT NULL DEFAULT '',
-      mesaj     TEXT    NOT NULL,
-      okundu    INTEGER NOT NULL DEFAULT 0,
-      olusturma TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_mesaj_tarih ON mesajlar(olusturma DESC);
-
     CREATE TABLE IF NOT EXISTS ayarlar (
       anahtar TEXT PRIMARY KEY,
       deger   TEXT NOT NULL

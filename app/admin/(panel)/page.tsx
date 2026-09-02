@@ -1,27 +1,19 @@
 import Link from "next/link";
-import { mesajlariGetir, projeleriGetir } from "@/lib/queries";
+import { projeleriGetir } from "@/lib/queries";
 
 export default function PanelOzet() {
   const projeler = projeleriGetir(false);
-  const mesajlar = mesajlariGetir();
-  const okunmamis = mesajlar.filter((m) => m.okundu === 0);
+  const yayinda = projeler.filter((p) => p.yayinda === 1).length;
+  const taslak = projeler.length - yayinda;
 
   const kartlar = [
+    { etiket: "Yayındaki proje", deger: yayinda, yol: "/admin/projeler" },
+    // Taslak sayisi vurgulu: yayina alinmayi bekleyen bir proje unutulmasin.
     {
-      etiket: "Yayındaki proje",
-      deger: projeler.filter((p) => p.yayinda === 1).length,
+      etiket: "Taslak proje",
+      deger: taslak,
       yol: "/admin/projeler",
-    },
-    {
-      etiket: "Okunmamış mesaj",
-      deger: okunmamis.length,
-      yol: "/admin/mesajlar",
-      vurgu: okunmamis.length > 0,
-    },
-    {
-      etiket: "Toplam mesaj",
-      deger: mesajlar.length,
-      yol: "/admin/mesajlar",
+      vurgu: taslak > 0,
     },
   ];
 
@@ -29,7 +21,7 @@ export default function PanelOzet() {
     <>
       <h1 className="font-display text-3xl">Özet</h1>
 
-      <div className="mt-10 grid gap-px overflow-hidden border border-[var(--color-rule)] bg-[var(--color-rule)] sm:grid-cols-3">
+      <div className="mt-10 grid gap-px overflow-hidden border border-[var(--color-rule)] bg-[var(--color-rule)] sm:grid-cols-2">
         {kartlar.map((k) => (
           <Link
             key={k.etiket}
@@ -62,31 +54,6 @@ export default function PanelOzet() {
         </div>
       )}
 
-      {okunmamis.length > 0 && (
-        <section className="mt-14">
-          <h2 className="eyebrow border-b border-[var(--color-rule)] pb-4">
-            Okunmamış mesajlar
-          </h2>
-          <ul className="divide-y divide-[var(--color-rule)]">
-            {okunmamis.slice(0, 5).map((m) => (
-              <li key={m.id}>
-                <Link
-                  href="/admin/mesajlar"
-                  className="row-link flex flex-wrap items-baseline justify-between gap-2 py-4"
-                >
-                  <span className="font-medium">{m.ad}</span>
-                  <span className="max-w-md truncate text-sm text-[var(--color-muted)]">
-                    {m.mesaj}
-                  </span>
-                  <span className="tabular text-xs text-[var(--color-muted)]">
-                    {new Date(m.olusturma + "Z").toLocaleDateString("tr-TR")}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </>
   );
 }
