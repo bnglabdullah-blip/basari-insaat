@@ -29,7 +29,7 @@ export const VARSAYILAN = {
   yetkili1Tel: "0534 590 25 63",
   yetkili2Ad: "Abdullah Bey",
   yetkili2Tel: "0533 593 81 73",
-  eposta: "",
+  eposta: "basariinsaat26@gmail.com",
   calismaSaatleri: "Pazartesi – Cumartesi · 09:00 – 18:00",
 
   // Formun yonlendirdigi WhatsApp hatti. Panelden degistirilebilir.
