@@ -52,9 +52,24 @@ COPY --from=derleyici --chown=basari:nodejs /app/.next/standalone ./
 COPY --from=derleyici --chown=basari:nodejs /app/.next/static ./.next/static
 COPY --from=derleyici --chown=basari:nodejs /app/public ./public
 
-# Volume bağlanmadan önce klasörlerin var olması ve yazılabilir olması gerek.
-RUN mkdir -p /app/data /app/public/uploads \
-    && chown -R basari:nodejs /app/data /app/public/uploads
+# Tum kalici veri TEK klasorde toplaniyor:
+#   /app/veri/basari.db  -> veritabani
+#   /app/veri/uploads    -> fotograflar (public/uploads buraya symlink)
+#
+# Neden tek klasor: Railway, Render ve Fly.io servis basina TEK kalici disk
+# veriyor. Ayri ayri /app/data + /app/public/uploads baglamak bu platformlarda
+# mumkun degil; biri mutlaka volume'suz kalir ve her deploy'da silinir.
+#
+# Veritabani BILEREK public/ disinda: public/ altindaki her sey statik olarak
+# sunulur. basari.db oraya konsaydi mesajlar ve ayarlar internetten
+# indirilebilir olurdu.
+#
+# public/uploads .dockerignore'da, yani imajda yok - symlink'i biz yaratiyoruz.
+ENV DB_YOLU=/app/veri/basari.db
+RUN mkdir -p /app/veri/uploads \
+    && ln -s /app/veri/uploads /app/public/uploads \
+    && chown -R basari:nodejs /app/veri \
+    && chown -h basari:nodejs /app/public/uploads
 
 USER basari
 EXPOSE 3000

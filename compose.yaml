@@ -14,14 +14,16 @@ services:
 
     volumes:
       # ---------------------------------------------------------------
-      # BU İKİ SATIR KRİTİK.
-      # Konteyner içindeki dosya sistemi her `docker compose up --build`
-      # ile sıfırlanır. Volume bağlanmazsa TÜM projeler, mesajlar ve
-      # yüklenen fotoğraflar her güncellemede silinir.
+      # BU SATIR KRITIK.
+      # Konteyner ici dosya sistemi her `docker compose up --build` ile
+      # sifirlanir. Volume baglanmazsa TUM projeler, mesajlar ve yuklenen
+      # fotograflar her guncellemede silinir.
+      #
+      # Tek klasor: /app/veri icinde hem basari.db hem uploads/ duruyor
+      # (bkz. Dockerfile). Boylece ayni yapilandirma Railway, Render ve
+      # Fly.io'da da calisir - onlar servis basina tek disk veriyor.
       # ---------------------------------------------------------------
-      - basari-veri:/app/data
-      - basari-fotograflar:/app/public/uploads
+      - basari-veri:/app/veri
 
 volumes:
   basari-veri:
-  basari-fotograflar:
