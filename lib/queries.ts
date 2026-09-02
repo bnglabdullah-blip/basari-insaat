@@ -292,3 +292,32 @@ export const ayarlariKaydet = db.transaction(
     for (const [k, v] of Object.entries(degerler)) stmt.run(k, v ?? "");
   }
 );
+
+/* ==========================================================================
+   Admin parolasi
+   ========================================================================== */
+
+/**
+ * Parola ozeti `ayarlar` tablosunda tutuluyor ama VARSAYILAN icinde DEGIL.
+ *
+ * Bu ayrim KASITLI ve guvenlik acisindan kritik: ayarlariGetir() yalnizca
+ * VARSAYILAN'da bulunan anahtarlari donduruyor (bkz. yukaridaki filtre) ve o
+ * sonuc IcerikFormu gibi ISTEMCI bilesenlerine kadar gidiyor. Anahtari
+ * VARSAYILAN'a eklemek, parola ozetini her sayfa render'inda tarayiciya
+ * gondermek anlamina gelirdi. Buradaki filtre, o sizintiyi engelleyen sey.
+ */
+const PAROLA_ANAHTARI = "admin_parola_hash";
+
+/** Panelden belirlenmis parola ozeti; hic belirlenmediyse null. */
+export function parolaHashGetir(): string | null {
+  const r = db
+    .prepare("SELECT deger FROM ayarlar WHERE anahtar = ?")
+    .get(PAROLA_ANAHTARI) as { deger: string } | undefined;
+  return r && r.deger.trim() !== "" ? r.deger : null;
+}
+
+export function parolaHashKaydet(hash: string): void {
+  db.prepare(
+    "INSERT INTO ayarlar (anahtar, deger) VALUES (?, ?) ON CONFLICT(anahtar) DO UPDATE SET deger = excluded.deger"
+  ).run(PAROLA_ANAHTARI, hash);
+}

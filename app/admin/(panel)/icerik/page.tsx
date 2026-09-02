@@ -1,4 +1,5 @@
 import IcerikFormu from "@/components/admin/icerik-formu";
+import ParolaFormu from "@/components/admin/parola-formu";
 import { ayarlariGetir } from "@/lib/queries";
 
 export default function IcerikSayfasi() {
@@ -9,6 +10,7 @@ export default function IcerikSayfasi() {
         İletişim bilgileri ve site metinleri.
       </p>
       <IcerikFormu ayarlar={ayarlariGetir()} />
+      <ParolaFormu />
     </>
   );
 }

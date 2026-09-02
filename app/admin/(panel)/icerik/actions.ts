@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { yetkiGerekli } from "@/lib/auth";
+import { parolaDegistir, yetkiGerekli } from "@/lib/auth";
 import { VARSAYILAN, type AyarAnahtari } from "@/lib/icerik";
 import { ayarlariKaydet } from "@/lib/queries";
 
@@ -32,4 +32,21 @@ export async function icerikKaydetAction(
   revalidatePath("/", "layout");
 
   return { bilgi: "Kaydedildi. Değişiklikler sitede güncellendi." };
+}
+
+export async function parolaDegistirAction(
+  _onceki: IcerikDurum,
+  form: FormData
+): Promise<IcerikDurum> {
+  // Her server action kendi yetki kontrolunu yapar (bkz. lib/auth.ts aciklamasi).
+  await yetkiGerekli();
+
+  const sonuc = await parolaDegistir(
+    String(form.get("mevcut") ?? ""),
+    String(form.get("yeni") ?? "")
+  );
+
+  return sonuc.ok
+    ? { bilgi: "Parola değiştirildi. Bir sonraki girişte yeni parolayı kullanın." }
+    : { hata: sonuc.hata };
 }

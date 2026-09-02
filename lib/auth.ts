@@ -1,7 +1,8 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { jetonDogrula, jetonUret, parolaDogrula } from "./oturum";
+import { jetonDogrula, jetonUret, parolaDogrula, parolaHashle } from "./oturum";
+import { parolaHashGetir, parolaHashKaydet } from "./queries";
 
 /**
  * Next.js'e bagli kimlik dogrulama katmani.
@@ -54,6 +55,32 @@ function hizSiniriAsildi(kimlik: string): boolean {
 
 export type GirisSonuc = { ok: true } | { ok: false; hata: string };
 
+/**
+ * Gecerli parola ozeti: ONCE veritabani, sonra ortam degiskeni.
+ *
+ * Sira onemli. Musteri panelden parolasini degistirdiginde
+ * ADMIN_PAROLA_HASH artik eski parolayi temsil eder; env'e oncelik
+ * verilseydi degisiklik hicbir ise yaramaz, üstelik eski parola calismaya
+ * devam ederdi.
+ *
+ * Ortam degiskeni ILK KURULUM icin duruyor: veritabani bostur, panele
+ * girilecek bir parola gerekir. Musteri parolasini bir kez degistirdikten
+ * sonra env degeri tamamen devre disi kalir ve Railway'den silinebilir.
+ */
+function gecerliHash(): string {
+  const dbHash = parolaHashGetir();
+  if (dbHash) return dbHash;
+
+  const env = process.env.ADMIN_PAROLA_HASH;
+  if (!env) {
+    throw new Error(
+      "Parola tanimli degil: ne veritabaninda ne ADMIN_PAROLA_HASH icinde. " +
+        "`npm run parola` calistirip ciktisini ortam degiskenlerine ekleyin."
+    );
+  }
+  return env;
+}
+
 export async function girisYap(
   parola: string,
   kimlik = "genel"
@@ -65,15 +92,7 @@ export async function girisYap(
     };
   }
 
-  const saklanan = process.env.ADMIN_PAROLA_HASH;
-  if (!saklanan) {
-    throw new Error(
-      "ADMIN_PAROLA_HASH ortam degiskeni tanimli degil. " +
-        "`npm run parola` calistirip ciktisini .env.local dosyasina ekleyin."
-    );
-  }
-
-  if (!parolaDogrula(parola, saklanan)) {
+  if (!parolaDogrula(parola, gecerliHash())) {
     return { ok: false, hata: "Parola hatalı." };
   }
 
@@ -119,6 +138,39 @@ export async function oturumAcikMi(): Promise<boolean> {
  */
 export async function yetkiGerekli(): Promise<void> {
   if (!(await oturumAcikMi())) redirect("/admin/giris");
+}
+
+/* --------------------------------------------------------------------------
+   Parola degistirme
+   -------------------------------------------------------------------------- */
+
+/** scripts/parola.mjs ile ayni alt sinir. */
+const ASGARI_UZUNLUK = 10;
+
+/**
+ * Panelden parola degistirir.
+ *
+ * Oturum acik olsa bile MEVCUT PAROLA tekrar soruluyor. Sebebi: acik birakilmis
+ * bir panelin basina gecen biri, parolayi degistirip asil sahibini kendi
+ * sitesinden kilitleyebilirdi. Oturum "bu kisi giris yapmisti" der; mevcut
+ * parola "bu kisi hâlâ sahibi" der.
+ */
+export async function parolaDegistir(
+  mevcut: string,
+  yeni: string
+): Promise<GirisSonuc> {
+  if (yeni.length < ASGARI_UZUNLUK) {
+    return {
+      ok: false,
+      hata: `Yeni parola en az ${ASGARI_UZUNLUK} karakter olmalı.`,
+    };
+  }
+  if (!parolaDogrula(mevcut, gecerliHash())) {
+    return { ok: false, hata: "Mevcut parola hatalı." };
+  }
+
+  parolaHashKaydet(parolaHashle(yeni));
+  return { ok: true };
 }
 
 export { CEREZ_ADI };
