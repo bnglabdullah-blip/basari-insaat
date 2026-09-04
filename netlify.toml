@@ -22,3 +22,22 @@
 # da kurar; acikca yazmak surumun neye bagli oldugunu gorunur kilar.
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Eski *.netlify.app adresini asil alan adina yollar.
+#
+# Neden gerekli: iki adres de ayni icerigi 200 ile donerse arama motorlari
+# icin cift icerik olusur ve siralama ikiye bolunur. Ayrica netlify.app
+# Turk Telekom'un Guvenli Internet profilinde engelli; oraya dusen bir
+# ziyaretci siteyi hic goremez.
+#
+# from tam URL yazildigi icin kural yalnizca O ana bilgisayar adina uygulanir.
+# Dagitim onizlemeleri (<id>--basari-yapi.netlify.app) eslesmez, calismaya
+# devam eder; yeni surumleri yayina almadan once test edebilelim diye onemli.
+#
+# force = true olmasa statik dosyalar kuraldan once gelir ve yonlendirme
+# yalnizca 404'lerde calisirdi.
+[[redirects]]
+  from = "https://basari-yapi.netlify.app/*"
+  to = "https://basariyapi.com/:splat"
+  status = 301
+  force = true
