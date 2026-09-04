@@ -151,10 +151,10 @@ export default function SiteFooter({
 
         {/* Alt satir */}
         <div className="mt-16 flex flex-col gap-3 border-t border-[var(--color-rule-dark)] pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <p className="tabular text-sm text-[var(--color-paper)]/45">
+          <p className="tabular text-sm text-[var(--color-paper)]/55">
             © {yil} {ayarlar.firma}
           </p>
-          <p className="text-sm text-[var(--color-paper)]/45">
+          <p className="text-sm text-[var(--color-paper)]/55">
             Tasarım ve geliştirme:{" "}
             {/* URL girilene kadar duz metin. Bos href veya "#" birakmak,
                 tiklayip hicbir yere gitmeyen bir baglanti uretirdi. */}

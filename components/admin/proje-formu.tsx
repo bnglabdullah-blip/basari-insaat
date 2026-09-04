@@ -91,8 +91,11 @@ export default function ProjeFormu({ proje }: { proje?: Proje }) {
           className={girdiSinif}
           placeholder="otomatik"
         />
+        {/* Alan adi burada sabit: bu bir onizleme metni, gercek adres degil.
+            Sunucu tarafi SITE_URL kullaniyor; ikisi ayrisirsa duzeltilecek
+            yer .env / SITE_URL, sonra bu satir. */}
         <p className="mt-2 break-all text-xs text-[var(--color-muted)]">
-          basariinsaat.com/projeler/
+          basariyapi.com/projeler/
           <span className="text-[var(--color-clay)]">{etkinSlug || "…"}</span>
         </p>
       </Alan>
@@ -164,7 +167,8 @@ export default function ProjeFormu({ proje }: { proje?: Proje }) {
         <input
           type="checkbox"
           name="yayinda"
-          defaultChecked={proje ? proje.yayinda === 1 : true}
+          // Boolean(): alan Postgres'te boolean, eski SQLite'ta 0/1 sayiydi.
+          defaultChecked={proje ? Boolean(proje.yayinda) : true}
           className="h-4 w-4 accent-[var(--color-navy)]"
         />
         <span className="text-sm">

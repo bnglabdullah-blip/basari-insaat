@@ -11,10 +11,10 @@ export default async function ProjeDuzenle({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const proje = projeGetirId(Number(id));
+  const proje = await projeGetirId(Number(id));
   if (!proje) notFound();
 
-  const gorseller = projeGorselleri(proje.id);
+  const gorseller = await projeGorselleri(proje.id);
 
   return (
     <>
@@ -27,7 +27,7 @@ export default async function ProjeDuzenle({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-display text-3xl">{proje.baslik}</h1>
-        {proje.yayinda === 1 && (
+        {proje.yayinda && (
           <Link
             href={`/projeler/${proje.slug}`}
             target="_blank"

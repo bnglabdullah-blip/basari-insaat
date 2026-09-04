@@ -1,5 +1,6 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { createHash } from "node:crypto";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { jetonDogrula, jetonUret, parolaDogrula, parolaHashle } from "./oturum";
 import { parolaHashGetir, parolaHashKaydet } from "./queries";
@@ -28,9 +29,10 @@ function anahtar(): string {
 /* --------------------------------------------------------------------------
    Giris denemesi hiz siniri
    --------------------------------------------------------------------------
-   Bellek ici, surec basina. Tek kapsayicida calisan bu site icin yeterli;
-   birden fazla kopya calistirilirsa paylasimli bir sayaca gecilmeli.
-   ponytail: bellek ici sayac, coklu kopyaya gecilirse Redis'e tasinir.
+   Bellek ici, surec basina. ponytail: Netlify'da her fonksiyon kopyasi kendi
+   sayacini tutar, yani sinir kopya basina 8 deneme demektir — caydiricilik
+   azalir ama kalkmaz. Gercek dagitik sinir gerekirse ayarlar tablosuna ya da
+   Upstash'e tasinir.
    -------------------------------------------------------------------------- */
 
 const denemeler = new Map<string, { sayi: number; ilk: number }>();
@@ -47,6 +49,26 @@ function hizSiniriAsildi(kimlik: string): boolean {
   }
   kayit.sayi += 1;
   return kayit.sayi > AZAMI_DENEME;
+}
+
+/**
+ * Hiz siniri anahtari: istemcinin IP'si.
+ *
+ * Netlify gercek istemci IP'sini `x-nf-client-connection-ip` basliginda verir;
+ * varsa dogrudan o kullanilir.
+ *
+ * x-forwarded-for'da ise EN SAGDAKI deger aliniyor, ilki DEGIL. Basligin sol
+ * tarafi istemcinin kendi elindedir: saldirgan istege "X-Forwarded-For: 1.2.3.4"
+ * ekleyerek her denemede farkli bir "IP" ile siniri sifirlayabilirdi. En sagdaki
+ * degeri ise onumuzdeki guvenilir proxy yazar, istemci degistiremez.
+ */
+async function istemciKimligi(): Promise<string> {
+  const h = await headers();
+  return (
+    h.get("x-nf-client-connection-ip") ??
+    h.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
+    "genel"
+  );
 }
 
 /* --------------------------------------------------------------------------
@@ -67,8 +89,8 @@ export type GirisSonuc = { ok: true } | { ok: false; hata: string };
  * girilecek bir parola gerekir. Musteri parolasini bir kez degistirdikten
  * sonra env degeri tamamen devre disi kalir ve Railway'den silinebilir.
  */
-function gecerliHash(): string {
-  const dbHash = parolaHashGetir();
+async function gecerliHash(): Promise<string> {
+  const dbHash = await parolaHashGetir();
   if (dbHash) return dbHash;
 
   const env = process.env.ADMIN_PAROLA_HASH;
@@ -81,25 +103,40 @@ function gecerliHash(): string {
   return env;
 }
 
+/**
+ * Jetona gomulen parola surumu: gecerli hash'in ozetinin ilk 8 karakteri.
+ *
+ * Parola degistiginde tuz yenilendigi icin hash, dolayisiyla bu damga da
+ * degisir; eskisiyle imzalanmis tum jetonlar aninda gecersizlesir. Damganin
+ * kendisi hash'i ele vermez: scrypt ciktisinin sha256'sinden 4 bayt, geri
+ * donusu yok.
+ */
+function jetonSurumu(hash: string): string {
+  return createHash("sha256").update(hash).digest("hex").slice(0, 8);
+}
+
 export async function girisYap(
   parola: string,
-  kimlik = "genel"
+  kimlik?: string
 ): Promise<GirisSonuc> {
-  if (hizSiniriAsildi(kimlik)) {
+  const anahtarKimlik = kimlik ?? (await istemciKimligi());
+
+  if (hizSiniriAsildi(anahtarKimlik)) {
     return {
       ok: false,
       hata: "Çok fazla hatalı deneme yapıldı. 15 dakika sonra tekrar deneyin.",
     };
   }
 
-  if (!parolaDogrula(parola, gecerliHash())) {
+  const hash = await gecerliHash();
+  if (!parolaDogrula(parola, hash)) {
     return { ok: false, hata: "Parola hatalı." };
   }
 
-  denemeler.delete(kimlik);
+  denemeler.delete(anahtarKimlik);
 
   const cerezler = await cookies();
-  cerezler.set(CEREZ_ADI, jetonUret(anahtar()), {
+  cerezler.set(CEREZ_ADI, jetonUret(anahtar(), Date.now() / 1000, jetonSurumu(hash)), {
     httpOnly: true, // JS ile okunamaz -> XSS ile oturum calinamaz
     sameSite: "lax", // baska sitelerden gelen isteklerde gonderilmez -> CSRF
     secure: process.env.NODE_ENV === "production", // HTTPS disinda gonderilmez
@@ -121,7 +158,17 @@ export async function cikisYap(): Promise<void> {
 
 export async function oturumAcikMi(): Promise<boolean> {
   const cerezler = await cookies();
-  return jetonDogrula(cerezler.get(CEREZ_ADI)?.value, anahtar());
+  const jeton = cerezler.get(CEREZ_ADI)?.value;
+  // Cerez yoksa parola surumu icin veritabanina gitmeye gerek yok: public
+  // site duzeni (onizlemeYetkisi) her render'da buraya ugruyor.
+  if (!jeton) return false;
+
+  return jetonDogrula(
+    jeton,
+    anahtar(),
+    Date.now() / 1000,
+    jetonSurumu(await gecerliHash())
+  );
 }
 
 /**
@@ -182,11 +229,13 @@ export async function parolaDegistir(
       hata: `Yeni parola en az ${ASGARI_UZUNLUK} karakter olmalı.`,
     };
   }
-  if (!parolaDogrula(mevcut, gecerliHash())) {
+  if (!parolaDogrula(mevcut, await gecerliHash())) {
     return { ok: false, hata: "Mevcut parola hatalı." };
   }
 
-  parolaHashKaydet(parolaHashle(yeni));
+  // Yeni hash yeni jeton surumu demek: bu kayitla birlikte, mevcut oturum
+  // dahil eski jetonlarin tumu gecersizlesir ve yeniden giris istenir.
+  await parolaHashKaydet(parolaHashle(yeni));
   return { ok: true };
 }
 

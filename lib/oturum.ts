@@ -68,23 +68,34 @@ function imzala(veri: string, anahtar: string): string {
 }
 
 /**
- * "<sonKullanma>.<imza>" bicimli bir jeton uretir.
+ * "<sonKullanma>.<imza>" bicimli bir jeton uretir; surum verilirse govde
+ * "<sonKullanma>:<surum>" olur.
  *
  * Icerik gizli degil (sadece bir zaman damgasi) — gizlilik degil BUTUNLUK
  * gerekiyor: sunucu, jetonun kendi urettigi jeton oldugunu ve degistirilmedigini
  * dogrulayabilmeli. HMAC tam olarak bunu saglar.
+ *
+ * `surum`: parola hash'inden turetilen kisa bir damga (bkz. auth.ts). Parola
+ * degistiginde damga da degisir ve eski jetonlar dogrulamada duser — parolayi
+ * degistirmek, calinmis/acik kalmis oturumlari da kapatir. Imza govdeye bagli
+ * oldugu icin damga jeton icinde degistirilemez.
  */
-export function jetonUret(anahtar: string, simdiSn = Date.now() / 1000): string {
+export function jetonUret(
+  anahtar: string,
+  simdiSn = Date.now() / 1000,
+  surum = ""
+): string {
   const sonKullanma = Math.floor(simdiSn) + OTURUM_SURESI_SN;
-  const govde = String(sonKullanma);
+  const govde = surum ? `${sonKullanma}:${surum}` : String(sonKullanma);
   return `${govde}.${imzala(govde, anahtar)}`;
 }
 
-/** Jeton gecerliyse true. Imza bozuksa veya suresi dolduysa false. */
+/** Jeton gecerliyse true. Imza bozuksa, suresi dolduysa veya surumu eskiyse false. */
 export function jetonDogrula(
   jeton: string | undefined | null,
   anahtar: string,
-  simdiSn = Date.now() / 1000
+  simdiSn = Date.now() / 1000,
+  surum = ""
 ): boolean {
   if (!jeton) return false;
 
@@ -103,9 +114,12 @@ export function jetonDogrula(
   if (a.length !== b.length) return false;
   if (!timingSafeEqual(a, b)) return false;
 
-  // Imza dogrulanmadan ONCE sure kontrolu yapilmiyor: dogrulanmamis veriye
-  // dayanarak karar vermemek genel bir kural.
-  const sonKullanma = Number(govde);
+  // Imza dogrulanmadan ONCE sure/surum kontrolu yapilmiyor: dogrulanmamis
+  // veriye dayanarak karar vermemek genel bir kural.
+  const [zamanKismi, jetonSurumu = ""] = govde.split(":");
+  if (jetonSurumu !== surum) return false;
+
+  const sonKullanma = Number(zamanKismi);
   if (!Number.isFinite(sonKullanma)) return false;
   return simdiSn < sonKullanma;
 }

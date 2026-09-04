@@ -9,8 +9,8 @@ export const metadata: Metadata = {
     "Başarı İnşaat'ın Eskişehir'de devam eden ve tamamlanan konut projeleri.",
 };
 
-export default function ProjelerSayfasi() {
-  const projeler = projeleriGetir();
+export default async function ProjelerSayfasi() {
+  const projeler = await projeleriGetir();
 
   return (
     <div className="mx-auto max-w-[100rem] px-6 pb-24 pt-16 md:px-10 md:pb-36 md:pt-24">
@@ -34,7 +34,7 @@ export default function ProjelerSayfasi() {
               <div className="relative aspect-[4/3] overflow-hidden bg-[var(--color-paper-dim)]">
                 <Gorsel
                   src={p.kapak}
-                  alt={p.baslik}
+                  alt=""
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="transition-transform duration-700 group-hover:scale-[1.03]"
                 />

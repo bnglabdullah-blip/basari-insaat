@@ -9,8 +9,8 @@ export const metadata: Metadata = {
     "Başarı İnşaat iletişim — telefon, e-posta, çalışma saatleri ve mesaj formu.",
 };
 
-export default function Iletisim() {
-  const a = ayarlariGetir();
+export default async function Iletisim() {
+  const a = await ayarlariGetir();
 
   /*
    * Yalnizca CEP telefonlari, isim etiketi olmadan (musteri istegi).

@@ -9,8 +9,8 @@ export const metadata: Metadata = {
     "Başarı İnşaat kurumsal bilgileri — ofis adresi, sabit telefon ve çalışma saatleri. Tepebaşı / Eskişehir.",
 };
 
-export default function SirketBilgilerimiz() {
-  const a = ayarlariGetir();
+export default async function SirketBilgilerimiz() {
+  const a = await ayarlariGetir();
 
   /*
    * Satirlar ayarlardan turetiliyor ve BOS olanlar listeye hic girmiyor.

@@ -9,7 +9,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const proje = projeGetir(slug);
+  const proje = await projeGetir(slug);
   if (!proje) return { title: "Proje bulunamadı" };
 
   return {
@@ -27,10 +27,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProjeDetay({ params }: Props) {
   const { slug } = await params;
-  const proje = projeGetir(slug);
+  const proje = await projeGetir(slug);
   if (!proje) notFound();
 
-  const gorseller = projeGorselleri(proje.id);
+  const gorseller = await projeGorselleri(proje.id);
   // İlk fotoğraf üstte tam genişlik kullanılıyor, galeride tekrar edilmiyor.
   const galeriGorselleri = gorseller.slice(1);
 

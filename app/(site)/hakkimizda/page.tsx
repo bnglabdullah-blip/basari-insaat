@@ -10,10 +10,10 @@ export const metadata: Metadata = {
     "Başarı İnşaat — Eskişehir'de konut ve ticari yapı projeleri geliştiren inşaat şirketi.",
 };
 
-export default function Hakkimizda() {
-  const ayarlar = ayarlariGetir();
+export default async function Hakkimizda() {
+  const ayarlar = await ayarlariGetir();
   // Doku amaçlı accent; ana sayfa hero'sundan ve kapaktan ayrı bir yuva.
-  const accent = yuvaGorseli(tumGorseller(), YUVA.hakkindaAccent);
+  const accent = yuvaGorseli(await tumGorseller(), YUVA.hakkindaAccent);
 
   return (
     <>

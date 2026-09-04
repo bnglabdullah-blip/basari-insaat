@@ -26,7 +26,7 @@ export async function icerikKaydetAction(
     if (typeof deger === "string") degerler[anahtar] = deger.trim();
   }
 
-  ayarlariKaydet(degerler);
+  await ayarlariKaydet(degerler);
 
   // Iletisim bilgileri footer'da, yani HER sayfada gorunuyor.
   revalidatePath("/", "layout");

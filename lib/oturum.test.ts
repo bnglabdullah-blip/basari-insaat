@@ -76,6 +76,23 @@ test("baska anahtarla imzalanmis jeton reddedilir", () => {
   assert.equal(jetonDogrula(jeton, ANAHTAR), false);
 });
 
+test("surumlu jeton ayni surumle gecerli, farkli surumle gecersiz", () => {
+  // Surum parola hash'inden turetiliyor (auth.ts): parola degisince surum
+  // degisir ve eski jetonlar dusmeli.
+  const jeton = jetonUret(ANAHTAR, Date.now() / 1000, "abc12345");
+  assert.equal(jetonDogrula(jeton, ANAHTAR, Date.now() / 1000, "abc12345"), true);
+  assert.equal(jetonDogrula(jeton, ANAHTAR, Date.now() / 1000, "ffff0000"), false);
+  assert.equal(jetonDogrula(jeton, ANAHTAR), false); // surumsuz dogrulama da kabul etmez
+});
+
+test("jetondaki surum damgasi degistirilemez", () => {
+  // Imza govdeye (zaman + surum) bagli: damgayi degistiren imzayi bozar.
+  const jeton = jetonUret(ANAHTAR, Date.now() / 1000, "abc12345");
+  const [govde, imza] = [jeton.slice(0, jeton.lastIndexOf(".")), jeton.slice(jeton.lastIndexOf(".") + 1)];
+  const kurcalanmis = govde.replace("abc12345", "ffff0000") + "." + imza;
+  assert.equal(jetonDogrula(kurcalanmis, ANAHTAR, Date.now() / 1000, "ffff0000"), false);
+});
+
 test("bicimsiz girdiler cokme yerine false dondurur", () => {
   for (const girdi of [undefined, null, "", ".", "imzasiz", ".sadeceimza"]) {
     assert.equal(jetonDogrula(girdi, ANAHTAR), false, `girdi: ${girdi}`);

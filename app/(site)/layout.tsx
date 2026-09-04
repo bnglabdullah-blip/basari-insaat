@@ -23,7 +23,7 @@ export default async function SiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const ayarlar = ayarlariGetir();
+  const ayarlar = await ayarlariGetir();
 
   /*
    * Duzenleme koprusu YALNIZCA oturum acikken sayfaya giriyor. Ziyaretcinin
@@ -37,7 +37,7 @@ export default async function SiteLayout({
       {yonetici && <OnizlemeKoprusu />}
       <YapisalVeri
         ayarlar={ayarlar}
-        siteUrl={process.env.SITE_URL ?? "https://basariinsaat.com"}
+        siteUrl={process.env.SITE_URL ?? "https://basariyapi.com"}
       />
       {/* Klavye ve ekran okuyucu kullanicilarinin menuyu atlayip dogrudan
           icerige gecmesi icin. Odaklanmadan gorunmez. */}

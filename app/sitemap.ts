@@ -5,8 +5,8 @@ import { projeleriGetir } from "@/lib/queries";
 // derleme aninda dondurulursa yeni eklenen projeler asla listelenmez.
 export const dynamic = "force-dynamic";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const site = process.env.SITE_URL ?? "https://basariinsaat.com";
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const site = process.env.SITE_URL ?? "https://basariyapi.com";
 
   const sabit = [
     "",
@@ -21,7 +21,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: yol === "" ? 1 : 0.8,
   }));
 
-  const projeler = projeleriGetir().map((p) => ({
+  const projeler = (await projeleriGetir()).map((p) => ({
     url: `${site}/projeler/${p.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,

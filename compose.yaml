@@ -10,7 +10,7 @@ services:
       # çünkü compose.yaml versiyon kontrolüne girer.
       ADMIN_PAROLA_HASH: ${ADMIN_PAROLA_HASH:?ADMIN_PAROLA_HASH tanimli degil - once "npm run parola" calistirin}
       OTURUM_ANAHTARI: ${OTURUM_ANAHTARI:?OTURUM_ANAHTARI tanimli degil - once "npm run parola" calistirin}
-      SITE_URL: ${SITE_URL:-https://basariinsaat.com}
+      SITE_URL: ${SITE_URL:-https://basariyapi.com}
 
     volumes:
       # ---------------------------------------------------------------

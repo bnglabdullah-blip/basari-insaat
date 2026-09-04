@@ -5,11 +5,10 @@ import { redirect } from "next/navigation";
 import { yetkiGerekli } from "@/lib/auth";
 import { slugla } from "@/lib/metin";
 import {
-  gorselEkle,
   gorselGetir,
   gorselSil,
+  gorselleriEkle,
   gorselleriSirala,
-  kapakTazele,
   projeEkle,
   projeGetirId,
   projeGorselleri,
@@ -18,11 +17,21 @@ import {
   slugKullanimda,
   type ProjeDurum,
 } from "@/lib/queries";
-import { fotografKaydet, fotografSil } from "@/lib/yukleme";
+import {
+  dosyaAdiGecerliMi,
+  dosyaUrl,
+  fotografSil,
+  imzaliYuklemeHedefleri,
+  type YuklemeHedefi,
+} from "@/lib/yukleme";
 
 export type ProjeDurumSonuc = { hata?: string; bilgi?: string };
 
 const GECERLI_DURUMLAR: ProjeDurum[] = ["planlama", "devam", "tamamlandi"];
+
+/** Tek seferde imzalanabilecek yukleme sayisi — panel zaten coklu secime izin
+ * veriyor ama sinirsiz URL talebi anlamsiz. */
+const AZAMI_YUKLEME_ADEDI = 20;
 
 /** Public sitede bu projenin gorundugu tum yollari tazeler. */
 function sayfalariTazele(slug?: string) {
@@ -36,6 +45,8 @@ function formuOku(form: FormData) {
   const baslik = String(form.get("baslik") ?? "").trim();
   if (!baslik) return { hata: "Proje başlığı zorunlu." } as const;
 
+  // Beyaz liste veritabanindaki CHECK kisitiyla birebir ayni; disina cikan
+  // deger DB'ye ulasmadan burada "devam"a katlanir.
   const durumHam = String(form.get("durum") ?? "devam");
   const durum = (GECERLI_DURUMLAR as string[]).includes(durumHam)
     ? (durumHam as ProjeDurum)
@@ -59,7 +70,8 @@ function formuOku(form: FormData) {
       yil: String(form.get("yil") ?? "").trim(),
       ozet: String(form.get("ozet") ?? "").trim(),
       aciklama: String(form.get("aciklama") ?? "").trim(),
-      yayinda: form.get("yayinda") ? 1 : 0,
+      // Postgres'te boolean sutun; checkbox'in varligi yeterli.
+      yayinda: Boolean(form.get("yayinda")),
     },
   } as const;
 }
@@ -79,26 +91,34 @@ export async function projeKaydetAction(
   const okunan = formuOku(form);
   if ("hata" in okunan) return { hata: okunan.hata };
 
+  /*
+   * id alani bozuksa (bos degil ama sayi da degil) islemi kes. Onceki halde
+   * Number("abc") = NaN, asagidaki `if (id)` false'a dusuyor ve GUNCELLEME
+   * niyetiyle gelen istek sessizce YENI proje olusturuyordu.
+   */
   const idHam = form.get("id");
   const id = idHam ? Number(idHam) : null;
+  if (id !== null && !Number.isInteger(id)) {
+    return { hata: "Geçersiz proje kimliği." };
+  }
 
-  if (slugKullanimda(okunan.veri.slug, id ?? undefined)) {
+  if (await slugKullanimda(okunan.veri.slug, id ?? undefined)) {
     return {
       hata: `"${okunan.veri.slug}" web adresi başka bir projede kullanılıyor. Başlığı veya web adresini değiştirin.`,
     };
   }
 
   if (id) {
-    const mevcut = projeGetirId(id);
+    const mevcut = await projeGetirId(id);
     if (!mevcut) return { hata: "Proje bulunamadı." };
-    projeGuncelle(id, okunan.veri);
+    await projeGuncelle(id, okunan.veri);
     sayfalariTazele(mevcut.slug);
     sayfalariTazele(okunan.veri.slug); // slug degistiyse eski yol da tazelenir
     revalidatePath(`/admin/projeler/${id}`);
     return { bilgi: "Değişiklikler kaydedildi." };
   }
 
-  const yeniId = projeEkle(okunan.veri);
+  const yeniId = await projeEkle(okunan.veri);
   sayfalariTazele(okunan.veri.slug);
   redirect(`/admin/projeler/${yeniId}`);
 }
@@ -107,77 +127,94 @@ export async function projeSilAction(form: FormData): Promise<void> {
   await yetkiGerekli();
 
   const id = Number(form.get("id"));
-  const proje = projeGetirId(id);
+  if (!Number.isInteger(id)) redirect("/admin/projeler");
+
+  const proje = await projeGetirId(id);
   if (!proje) redirect("/admin/projeler");
 
-  // Once diskteki dosyalar, sonra veritabani kaydi. Ters sirada yapilsaydi
-  // (once DB) hangi dosyalarin silinecegi bilgisi kaybolur ve fotograflar
-  // diskte sonsuza kadar yetim kalirdi.
-  for (const g of projeGorselleri(id)) await fotografSil(g.dosya);
+  // Once Storage'daki dosyalar, sonra veritabani kaydi. Ters sirada
+  // yapilsaydi (once DB) hangi dosyalarin silinecegi bilgisi kaybolur ve
+  // fotograflar bucket'ta sonsuza kadar yetim kalirdi.
+  for (const g of await projeGorselleri(id)) await fotografSil(g.dosya);
 
-  projeSil(id);
+  await projeSil(id);
   sayfalariTazele(proje.slug);
   redirect("/admin/projeler");
 }
 
 /* ==========================================================================
-   Görseller
+   Görseller — iki adimli yukleme
+   --------------------------------------------------------------------------
+   Dosyalar Netlify fonksiyonundan GECMEZ (govde siniri ~6 MB). Akis:
+     1. Istemci gorselYuklemeUrlAction ile N imzali hedef alir.
+     2. Kucultulmus WebP'leri dogrudan Storage'a PUT eder (hedef.url).
+     3. Biten adlari gorselKaydetAction'a verir; kayit + kapak + tazeleme
+        orada olur.
    ========================================================================== */
 
-export async function gorselYukleAction(
-  _onceki: ProjeDurumSonuc,
-  form: FormData
+export type YuklemeUrlSonuc = { hata?: string; hedefler?: YuklemeHedefi[] };
+
+export async function gorselYuklemeUrlAction(
+  projeId: number,
+  adet: number
+): Promise<YuklemeUrlSonuc> {
+  await yetkiGerekli();
+
+  if (!Number.isInteger(projeId) || !Number.isInteger(adet)) {
+    return { hata: "Geçersiz istek." };
+  }
+  if (adet < 1 || adet > AZAMI_YUKLEME_ADEDI) {
+    return { hata: `Tek seferde en fazla ${AZAMI_YUKLEME_ADEDI} fotoğraf yüklenebilir.` };
+  }
+  if (!(await projeGetirId(projeId))) return { hata: "Proje bulunamadı." };
+
+  return { hedefler: await imzaliYuklemeHedefleri(adet) };
+}
+
+export async function gorselKaydetAction(
+  projeId: number,
+  dosyaAdlari: string[]
 ): Promise<ProjeDurumSonuc> {
   await yetkiGerekli();
 
-  const projeId = Number(form.get("projeId"));
-  const proje = projeGetirId(projeId);
+  if (!Number.isInteger(projeId)) return { hata: "Geçersiz istek." };
+  const proje = await projeGetirId(projeId);
   if (!proje) return { hata: "Proje bulunamadı." };
 
-  const dosyalar = form
-    .getAll("fotograflar")
-    .filter((d): d is File => d instanceof File && d.size > 0);
+  /*
+   * Adlar istemciden geri geliyor ama istemcinin SECTIGI adlar degil:
+   * imzali URL yalnizca bizim urettigimiz ada yazabilir. Yine de bicim
+   * dogrulamasi yapiliyor — bizim kalibimiza uymayan bir ad veritabanina
+   * hicbir kosulda girmez.
+   */
+  const gecerli = dosyaAdlari
+    .slice(0, AZAMI_YUKLEME_ADEDI)
+    .filter(dosyaAdiGecerliMi);
+  if (gecerli.length === 0) return { hata: "Kaydedilecek fotoğraf yok." };
 
-  if (dosyalar.length === 0) return { hata: "Fotoğraf seçilmedi." };
-
-  const hatalar: string[] = [];
-  let basarili = 0;
-
-  for (const d of dosyalar) {
-    const sonuc = await fotografKaydet(d);
-    if (sonuc.ok) {
-      gorselEkle(projeId, sonuc.dosya);
-      basarili++;
-    } else {
-      hatalar.push(sonuc.hata);
-    }
-  }
+  await gorselleriEkle(
+    projeId,
+    await Promise.all(gecerli.map((ad) => dosyaUrl(ad)))
+  );
 
   revalidatePath(`/admin/projeler/${projeId}`);
   sayfalariTazele(proje.slug);
 
-  // Kismi basari gercek bir durum: 5 fotograftan 4'u yuklenip biri
-  // bozuksa, kullanici hem neyin gectigini hem neyin kaldigini gormeli.
-  if (hatalar.length > 0) {
-    return {
-      hata:
-        (basarili > 0 ? `${basarili} fotoğraf yüklendi. ` : "") +
-        hatalar.join(" "),
-    };
-  }
-  return { bilgi: `${basarili} fotoğraf yüklendi.` };
+  return { bilgi: `${gecerli.length} fotoğraf yüklendi.` };
 }
 
 export async function gorselSilAction(form: FormData): Promise<void> {
   await yetkiGerekli();
 
   const gorselId = Number(form.get("gorselId"));
-  const gorsel = gorselGetir(gorselId);
+  if (!Number.isInteger(gorselId)) return;
+
+  const gorsel = await gorselGetir(gorselId);
   if (!gorsel) return;
 
-  const proje = projeGetirId(gorsel.proje_id);
+  const proje = await projeGetirId(gorsel.proje_id);
 
-  gorselSil(gorselId);
+  await gorselSil(gorselId); // kapagi da tazeler
   await fotografSil(gorsel.dosya);
 
   revalidatePath(`/admin/projeler/${gorsel.proje_id}`);
@@ -190,12 +227,14 @@ export async function gorselSiralaAction(
 ): Promise<void> {
   await yetkiGerekli();
 
-  const proje = projeGetirId(projeId);
+  if (!Number.isInteger(projeId) || !sirali.every(Number.isInteger)) return;
+
+  const proje = await projeGetirId(projeId);
   if (!proje) return;
 
-  gorselleriSirala(projeId, sirali);
-  // Siralamanin ilk elemani kapak gorseli oldugu icin kapak da tazelenir.
-  kapakTazele(projeId);
+  // Siralamanin ilk elemani kapak oldugu icin gorselleriSirala kapagi da
+  // ayni islemde tazeler; ayri bir kapakTazele cagrisi gerekmiyor.
+  await gorselleriSirala(projeId, sirali);
 
   revalidatePath(`/admin/projeler/${projeId}`);
   sayfalariTazele(proje.slug);

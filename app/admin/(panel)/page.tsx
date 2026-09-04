@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { projeleriGetir } from "@/lib/queries";
 
-export default function PanelOzet() {
-  const projeler = projeleriGetir(false);
-  const yayinda = projeler.filter((p) => p.yayinda === 1).length;
+export default async function PanelOzet() {
+  const projeler = await projeleriGetir(false);
+  const yayinda = projeler.filter((p) => p.yayinda).length;
   const taslak = projeler.length - yayinda;
 
   const kartlar = [

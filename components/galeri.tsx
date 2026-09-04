@@ -76,6 +76,10 @@ export default function Galeri({
 
       <dialog
         ref={dialogRef}
+        // Pencerenin gorunur bir basligi yok (yalnizca sayac ve fotograf).
+        // Etiketsiz bir modal, ekran okuyucuda ismi olmayan bir kutu olarak
+        // duyurulur; kullanici nereye girdigini anlamaz.
+        aria-label={`${baslik} — fotoğraf görüntüleyici`}
         // Boslugu tiklayarak kapatma. <dialog> tiklamalari kendi kutusunda
         // aldigi icin hedefin dialog'un KENDISI olmasi, arka plana
         // tiklandigi anlamina gelir.
@@ -86,7 +90,10 @@ export default function Galeri({
       >
         <div className="flex h-full flex-col">
           <div className="flex shrink-0 items-center justify-between px-5 py-4 text-[var(--color-paper)]">
-            <span className="tabular text-sm">
+            {/* Ok tuslariyla gezinirken degisen TEK metin bu. aria-live
+                olmadan ekran okuyucu kacinci fotografta olundugunu hic
+                soylemez. */}
+            <span aria-live="polite" className="tabular text-sm">
               {aktif + 1} / {gorseller.length}
             </span>
             <button

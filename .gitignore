@@ -16,3 +16,6 @@ basari-resimler/
 
 .vercel
 .env*
+
+# Local Netlify folder
+.netlify

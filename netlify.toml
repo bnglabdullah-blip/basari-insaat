@@ -1,0 +1,24 @@
+# Netlify dagitimi.
+#
+# Ortam degiskenleri (Netlify panelinden girilir, buraya YAZILMAZ):
+#   SUPABASE_URL                 https://bkpxbdpsgwauzrtbamce.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY    RLS'i bypass eder, tam yetkili
+#   OTURUM_ANAHTARI              oturum cerezini imzalar
+#   SITE_URL                     https://basariyapi.com
+#   ADMIN_PAROLA_HASH            yalnizca ilk kurulumda; panelden parola
+#                                degistirilince veritabanina yazilir ve bu
+#                                degisken artik okunmaz (bkz. lib/auth.ts)
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # package.json'daki Next 16 / React 19 zinciriyle uyumlu LTS.
+  NODE_VERSION = "22"
+
+# Next.js calisma zamani: server component'leri, action'lari ve ISR'i
+# Netlify fonksiyonlarina cevirir. Netlify Next projelerinde bunu otomatik
+# da kurar; acikca yazmak surumun neye bagli oldugunu gorunur kilar.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

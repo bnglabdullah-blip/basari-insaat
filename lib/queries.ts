@@ -1,6 +1,25 @@
 import { db } from "./db";
 import { VARSAYILAN, type AyarAnahtari } from "./icerik";
 
+/**
+ * Tum veritabani sorgulari — Supabase Postgres, yalnizca sunucudan.
+ *
+ * SQLite doneminden tek sozlesme farki: her fonksiyon artik async ve Promise
+ * donduruyor. Adlar ve parametreler birebir ayni kaldi; cagiran taraf sadece
+ * `await` ekliyor.
+ *
+ * Supabase istemcisi hata FIRLATMAZ, `{ data, error }` dondurur. better-sqlite3
+ * ise firlatiyordu ve tum cagiran kod buna gore yazildi. `kontrol` yardimcisi
+ * eski davranisi geri getiriyor: hata varsa firlat, yoksa devam.
+ */
+
+function kontrol(
+  hata: { message: string } | null,
+  islem: string
+): void {
+  if (hata) throw new Error(`[veritabani] ${islem}: ${hata.message}`);
+}
+
 /* ==========================================================================
    Tipler
    ========================================================================== */
@@ -20,12 +39,20 @@ export type Proje = {
   konum: string;
   durum: ProjeDurum;
   yil: string;
+  // DIKKAT: Postgres'te boolean — SQLite'taki 0/1 degil. `p.yayinda === 1`
+  // gibi eski karsilastirmalar sessizce false olur; `p.yayinda` yeterli.
+  yayinda: boolean;
   ozet: string;
   aciklama: string;
   kapak: string | null;
   sira: number;
-  yayinda: number;
-  olusturma: string;
+  olusturma: string; // timestamptz, ISO bicimli string olarak gelir
+  /**
+   * Yalnizca projeleriGetir() doldurur: projenin fotograf adedi.
+   * Eskiden liste ekrani her proje icin ayri projeGorselleri() cagiriyordu
+   * (N+1); sayi artik tek sorguda geliyor.
+   */
+  gorselSayisi?: number;
 };
 
 export type ProjeGorsel = {
@@ -39,34 +66,55 @@ export type ProjeGorsel = {
    Projeler
    ========================================================================== */
 
-export function projeleriGetir(sadeceYayinda = true): Proje[] {
-  return db
-    .prepare(
-      `SELECT * FROM projeler
-       ${sadeceYayinda ? "WHERE yayinda = 1" : ""}
-       ORDER BY sira ASC, id DESC`
-    )
-    .all() as Proje[];
+export async function projeleriGetir(sadeceYayinda = true): Promise<Proje[]> {
+  // proje_gorseller(count): gorsel adedi ayni sorguda geliyor, proje basina
+  // ek sorgu yok.
+  let sorgu = db
+    .from("projeler")
+    .select("*, proje_gorseller(count)")
+    .order("sira", { ascending: true })
+    .order("id", { ascending: false });
+  if (sadeceYayinda) sorgu = sorgu.eq("yayinda", true);
+
+  const { data, error } = await sorgu;
+  kontrol(error, "projeleriGetir");
+
+  return (data ?? []).map(({ proje_gorseller, ...p }) => ({
+    ...p,
+    gorselSayisi: (proje_gorseller as { count: number }[])?.[0]?.count ?? 0,
+  })) as Proje[];
 }
 
-export function projeGetir(slug: string): Proje | undefined {
-  return db
-    .prepare("SELECT * FROM projeler WHERE slug = ? AND yayinda = 1")
-    .get(slug) as Proje | undefined;
+export async function projeGetir(slug: string): Promise<Proje | undefined> {
+  const { data, error } = await db
+    .from("projeler")
+    .select("*")
+    .eq("slug", slug)
+    .eq("yayinda", true)
+    .maybeSingle();
+  kontrol(error, "projeGetir");
+  return (data as Proje | null) ?? undefined;
 }
 
-export function projeGetirId(id: number): Proje | undefined {
-  return db.prepare("SELECT * FROM projeler WHERE id = ?").get(id) as
-    | Proje
-    | undefined;
+export async function projeGetirId(id: number): Promise<Proje | undefined> {
+  const { data, error } = await db
+    .from("projeler")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  kontrol(error, "projeGetirId");
+  return (data as Proje | null) ?? undefined;
 }
 
-export function projeGorselleri(projeId: number): ProjeGorsel[] {
-  return db
-    .prepare(
-      "SELECT * FROM proje_gorseller WHERE proje_id = ? ORDER BY sira ASC, id ASC"
-    )
-    .all(projeId) as ProjeGorsel[];
+export async function projeGorselleri(projeId: number): Promise<ProjeGorsel[]> {
+  const { data, error } = await db
+    .from("proje_gorseller")
+    .select("*")
+    .eq("proje_id", projeId)
+    .order("sira", { ascending: true })
+    .order("id", { ascending: true });
+  kontrol(error, "projeGorselleri");
+  return (data ?? []) as ProjeGorsel[];
 }
 
 /**
@@ -77,20 +125,25 @@ export function projeGorselleri(projeId: number): ProjeGorsel[] {
  * tek ekranda iki kez cikmaz. Yalnizca YAYINDA projelerin fotograflari
  * geliyor — taslak bir projenin karesi ana sayfada belirmemeli.
  */
-export function tumGorseller(): string[] {
-  return (
-    db
-      .prepare(
-        `SELECT g.dosya FROM proje_gorseller g
-         JOIN projeler p ON p.id = g.proje_id
-         WHERE p.yayinda = 1
-         ORDER BY p.sira ASC, p.id DESC, g.sira ASC`
-      )
-      .all() as { dosya: string }[]
-  ).map((r) => r.dosya);
+export async function tumGorseller(): Promise<string[]> {
+  // Projelerden asagi dogru tek sorgu: projeler kendi sirasinda, her projenin
+  // gorselleri kendi sirasinda gomulu geliyor; duzlestirince galeri sirasi.
+  const { data, error } = await db
+    .from("projeler")
+    .select("proje_gorseller(dosya)")
+    .eq("yayinda", true)
+    .order("sira", { ascending: true })
+    .order("id", { ascending: false })
+    .order("sira", { referencedTable: "proje_gorseller", ascending: true })
+    .order("id", { referencedTable: "proje_gorseller", ascending: true });
+  kontrol(error, "tumGorseller");
+
+  return (data ?? []).flatMap((p) =>
+    (p.proje_gorseller as { dosya: string }[]).map((g) => g.dosya)
+  );
 }
 
-export function projeEkle(v: {
+export async function projeEkle(v: {
   slug: string;
   baslik: string;
   konum: string;
@@ -98,25 +151,35 @@ export function projeEkle(v: {
   yil: string;
   ozet: string;
   aciklama: string;
-  yayinda: number;
-}): number {
+  yayinda: boolean;
+}): Promise<number> {
   /*
    * Yeni proje EN KUCUK sirayi alir (MIN - 1), en buyugunu degil.
    * Listeler "ORDER BY sira ASC" oldugu icin bu, yeni eklenen projeyi
-   * listenin BASINA koyar. Onceki hali (MAX + 1) tam tersini yapiyor,
-   * yeni projeyi en sona atiyordu.
+   * listenin BASINA koyar.
+   *
+   * MIN'i ayri sorguyla okuyoruz; iki admin ayni milisaniyede proje eklerse
+   * ayni sirayi alabilirler ama tek adminli bu sitede bu bir sorun degil,
+   * esitlik durumunda id zaten siralamayi belirliyor.
    */
-  const r = db
-    .prepare(
-      `INSERT INTO projeler (slug, baslik, konum, durum, yil, ozet, aciklama, yayinda, sira)
-       VALUES (@slug, @baslik, @konum, @durum, @yil, @ozet, @aciklama, @yayinda,
-               (SELECT COALESCE(MIN(sira), 0) - 1 FROM projeler))`
-    )
-    .run(v);
-  return Number(r.lastInsertRowid);
+  const { data: enUst, error: minHata } = await db
+    .from("projeler")
+    .select("sira")
+    .order("sira", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  kontrol(minHata, "projeEkle (sira)");
+
+  const { data, error } = await db
+    .from("projeler")
+    .insert({ ...v, sira: (enUst?.sira ?? 0) - 1 })
+    .select("id")
+    .single();
+  kontrol(error, "projeEkle");
+  return (data as { id: number }).id;
 }
 
-export function projeGuncelle(
+export async function projeGuncelle(
   id: number,
   v: {
     slug: string;
@@ -126,66 +189,124 @@ export function projeGuncelle(
     yil: string;
     ozet: string;
     aciklama: string;
-    yayinda: number;
+    yayinda: boolean;
   }
-): void {
-  db.prepare(
-    `UPDATE projeler SET slug=@slug, baslik=@baslik, konum=@konum, durum=@durum,
-            yil=@yil, ozet=@ozet, aciklama=@aciklama, yayinda=@yayinda
-     WHERE id=@id`
-  ).run({ ...v, id });
+): Promise<void> {
+  const { error } = await db.from("projeler").update(v).eq("id", id);
+  kontrol(error, "projeGuncelle");
 }
 
-export function projeSil(id: number): void {
+export async function projeSil(id: number): Promise<void> {
   // proje_gorseller kayitlari ON DELETE CASCADE ile otomatik siliniyor
-  // (db.ts icinde foreign_keys pragma'si aciliyor).
-  db.prepare("DELETE FROM projeler WHERE id = ?").run(id);
+  // (Postgres'te SQLite'in aksine bu her zaman aciktir).
+  const { error } = await db.from("projeler").delete().eq("id", id);
+  kontrol(error, "projeSil");
 }
 
 /** Bir slug'in baska bir projede kullanilip kullanilmadigini kontrol eder. */
-export function slugKullanimda(slug: string, haricId?: number): boolean {
-  const r = db
-    .prepare(
-      `SELECT 1 FROM projeler WHERE slug = ? ${haricId ? "AND id != ?" : ""} LIMIT 1`
-    )
-    .get(...(haricId ? [slug, haricId] : [slug]));
-  return r !== undefined;
+export async function slugKullanimda(
+  slug: string,
+  haricId?: number
+): Promise<boolean> {
+  let sorgu = db.from("projeler").select("id").eq("slug", slug).limit(1);
+  if (haricId) sorgu = sorgu.neq("id", haricId);
+
+  const { data, error } = await sorgu.maybeSingle();
+  kontrol(error, "slugKullanimda");
+  return data !== null;
 }
 
 /* ==========================================================================
    Proje görselleri
    ========================================================================== */
 
-export function gorselEkle(projeId: number, dosya: string): void {
-  db.prepare(
-    `INSERT INTO proje_gorseller (proje_id, dosya, sira)
-     VALUES (?, ?, (SELECT COALESCE(MAX(sira), 0) + 1 FROM proje_gorseller WHERE proje_id = ?))`
-  ).run(projeId, dosya, projeId);
-  kapakTazele(projeId);
+export async function gorselEkle(
+  projeId: number,
+  dosya: string
+): Promise<void> {
+  await gorselleriEkle(projeId, [dosya]);
 }
 
-export function gorselGetir(id: number): ProjeGorsel | undefined {
-  return db.prepare("SELECT * FROM proje_gorseller WHERE id = ?").get(id) as
-    | ProjeGorsel
-    | undefined;
+/**
+ * Birden fazla gorseli tek insert'le sona ekler ve kapagi tazeler.
+ *
+ * Yukleme akisi N dosyayi birlikte kaydettigi icin toplu hali asil olan;
+ * gorselEkle tek elemanli kisayol olarak duruyor.
+ */
+export async function gorselleriEkle(
+  projeId: number,
+  dosyalar: string[]
+): Promise<void> {
+  if (dosyalar.length === 0) return;
+
+  const { data: son, error: maxHata } = await db
+    .from("proje_gorseller")
+    .select("sira")
+    .eq("proje_id", projeId)
+    .order("sira", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  kontrol(maxHata, "gorselleriEkle (sira)");
+
+  const taban = (son?.sira ?? 0) + 1;
+  const { error } = await db.from("proje_gorseller").insert(
+    dosyalar.map((dosya, i) => ({ proje_id: projeId, dosya, sira: taban + i }))
+  );
+  kontrol(error, "gorselleriEkle");
+
+  await kapakTazele(projeId);
 }
 
-export function gorselSil(id: number): void {
-  const g = gorselGetir(id);
+export async function gorselGetir(
+  id: number
+): Promise<ProjeGorsel | undefined> {
+  const { data, error } = await db
+    .from("proje_gorseller")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  kontrol(error, "gorselGetir");
+  return (data as ProjeGorsel | null) ?? undefined;
+}
+
+export async function gorselSil(id: number): Promise<void> {
+  const g = await gorselGetir(id);
   if (!g) return;
-  db.prepare("DELETE FROM proje_gorseller WHERE id = ?").run(id);
-  kapakTazele(g.proje_id);
+
+  const { error } = await db.from("proje_gorseller").delete().eq("id", id);
+  kontrol(error, "gorselSil");
+
+  await kapakTazele(g.proje_id);
 }
 
-/** Yeni sirayi tek islemde yazar — yarim kalmis siralama olusmaz. */
-export const gorselleriSirala = db.transaction(
-  (projeId: number, sirali: number[]) => {
-    const stmt = db.prepare(
-      "UPDATE proje_gorseller SET sira = ? WHERE id = ? AND proje_id = ?"
-    );
-    sirali.forEach((gorselId, i) => stmt.run(i, gorselId, projeId));
-  }
-);
+/**
+ * Yeni sirayi yazar ve kapagi ayni islemde tazeler — cagiranin ayrica
+ * kapakTazele() cagirmasi gerekmez.
+ *
+ * ponytail: guncellemeler tek transaction degil; PostgREST toplu update
+ * sunmuyor ve id sutunu "generated always" oldugu icin upsert de calismiyor.
+ * Yarim kalan bir siralama yalnizca gorsel sirasini bozar, veri kaybetmez ve
+ * bir sonraki siralamayla duzelir. Gercek atomiklik gerekirse migration'a
+ * `gorselleri_sirala(bigint, bigint[])` RPC'si eklenip buradan cagrilir.
+ */
+export async function gorselleriSirala(
+  projeId: number,
+  sirali: number[]
+): Promise<void> {
+  const sonuclar = await Promise.all(
+    sirali.map((gorselId, i) =>
+      db
+        .from("proje_gorseller")
+        .update({ sira: i })
+        .eq("id", gorselId)
+        // proje_id kosulu: baska projeye ait bir id sizarsa etkisiz kalir.
+        .eq("proje_id", projeId)
+    )
+  );
+  for (const { error } of sonuclar) kontrol(error, "gorselleriSirala");
+
+  await kapakTazele(projeId);
+}
 
 /**
  * Kapak gorselini her zaman siradaki ILK gorsele esitler.
@@ -194,19 +315,23 @@ export const gorselleriSirala = db.transaction(
  * alani tutulmuyor. "Birinci fotograf kapaktir" tek kural olarak kaliyor,
  * ogrenilmesi gereken ikinci bir kavram olusmuyor.
  */
-function kapakTazele(projeId: number): void {
-  const ilk = db
-    .prepare(
-      "SELECT dosya FROM proje_gorseller WHERE proje_id = ? ORDER BY sira ASC, id ASC LIMIT 1"
-    )
-    .get(projeId) as { dosya: string } | undefined;
-  db.prepare("UPDATE projeler SET kapak = ? WHERE id = ?").run(
-    ilk?.dosya ?? null,
-    projeId
-  );
-}
+export async function kapakTazele(projeId: number): Promise<void> {
+  const { data: ilk, error } = await db
+    .from("proje_gorseller")
+    .select("dosya")
+    .eq("proje_id", projeId)
+    .order("sira", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  kontrol(error, "kapakTazele");
 
-export { kapakTazele };
+  const { error: guncelleHata } = await db
+    .from("projeler")
+    .update({ kapak: ilk?.dosya ?? null })
+    .eq("id", projeId);
+  kontrol(guncelleHata, "kapakTazele (kapak)");
+}
 
 /* ==========================================================================
    Ayarlar (site metinleri + iletişim bilgileri)
@@ -220,14 +345,12 @@ export { kapakTazele };
  * Aksi halde yanlislikla silinen bir telefon numarasi siteden tamamen
  * kaybolurdu.
  */
-export function ayarlariGetir(): typeof VARSAYILAN {
-  const satirlar = db.prepare("SELECT anahtar, deger FROM ayarlar").all() as {
-    anahtar: string;
-    deger: string;
-  }[];
+export async function ayarlariGetir(): Promise<typeof VARSAYILAN> {
+  const { data, error } = await db.from("ayarlar").select("anahtar, deger");
+  kontrol(error, "ayarlariGetir");
 
   const sonuc = { ...VARSAYILAN } as Record<string, string>;
-  for (const s of satirlar) {
+  for (const s of (data ?? []) as { anahtar: string; deger: string }[]) {
     if (s.anahtar in VARSAYILAN && s.deger.trim() !== "") {
       sonuc[s.anahtar] = s.deger;
     }
@@ -235,14 +358,22 @@ export function ayarlariGetir(): typeof VARSAYILAN {
   return sonuc as typeof VARSAYILAN;
 }
 
-export const ayarlariKaydet = db.transaction(
-  (degerler: Partial<Record<AyarAnahtari, string>>) => {
-    const stmt = db.prepare(
-      "INSERT INTO ayarlar (anahtar, deger) VALUES (?, ?) ON CONFLICT(anahtar) DO UPDATE SET deger = excluded.deger"
-    );
-    for (const [k, v] of Object.entries(degerler)) stmt.run(k, v ?? "");
-  }
-);
+export async function ayarlariKaydet(
+  degerler: Partial<Record<AyarAnahtari, string>>
+): Promise<void> {
+  const satirlar = Object.entries(degerler).map(([anahtar, deger]) => ({
+    anahtar,
+    deger: deger ?? "",
+  }));
+  if (satirlar.length === 0) return;
+
+  // Tek upsert: ya hepsi yazilir ya hicbiri — SQLite donemindeki transaction
+  // ile ayni garanti.
+  const { error } = await db
+    .from("ayarlar")
+    .upsert(satirlar, { onConflict: "anahtar" });
+  kontrol(error, "ayarlariKaydet");
+}
 
 /* ==========================================================================
    Admin parolasi
@@ -260,15 +391,19 @@ export const ayarlariKaydet = db.transaction(
 const PAROLA_ANAHTARI = "admin_parola_hash";
 
 /** Panelden belirlenmis parola ozeti; hic belirlenmediyse null. */
-export function parolaHashGetir(): string | null {
-  const r = db
-    .prepare("SELECT deger FROM ayarlar WHERE anahtar = ?")
-    .get(PAROLA_ANAHTARI) as { deger: string } | undefined;
-  return r && r.deger.trim() !== "" ? r.deger : null;
+export async function parolaHashGetir(): Promise<string | null> {
+  const { data, error } = await db
+    .from("ayarlar")
+    .select("deger")
+    .eq("anahtar", PAROLA_ANAHTARI)
+    .maybeSingle();
+  kontrol(error, "parolaHashGetir");
+  return data && data.deger.trim() !== "" ? data.deger : null;
 }
 
-export function parolaHashKaydet(hash: string): void {
-  db.prepare(
-    "INSERT INTO ayarlar (anahtar, deger) VALUES (?, ?) ON CONFLICT(anahtar) DO UPDATE SET deger = excluded.deger"
-  ).run(PAROLA_ANAHTARI, hash);
+export async function parolaHashKaydet(hash: string): Promise<void> {
+  const { error } = await db
+    .from("ayarlar")
+    .upsert({ anahtar: PAROLA_ANAHTARI, deger: hash }, { onConflict: "anahtar" });
+  kontrol(error, "parolaHashKaydet");
 }

@@ -18,9 +18,9 @@ import { YUVA, yuvaGorseli } from "@/lib/vitrin";
  * ÜSTÜNDE: yeni bir firmada ilk soru "ne iş yapıyorsunuz" oluyor, "hangi
  * binayı yaptınız" ondan sonra geliyor.
  */
-export default function AnaSayfa() {
-  const ayarlar = ayarlariGetir();
-  const projeler = projeleriGetir();
+export default async function AnaSayfa() {
+  const ayarlar = await ayarlariGetir();
+  const projeler = await projeleriGetir();
   const oneCikan = projeler[0]; // sıralamada ilk olan proje
   const digerleri = projeler.slice(1, 4);
 
@@ -29,7 +29,8 @@ export default function AnaSayfa() {
    * `oneCikan.kapak` kullanıyordu ve aynı fotoğraf tek ekranda iki kez
    * görünüyordu — proje kartı kapağı gösterdiği için hemen altında tekrar.
    */
-  const heroGorsel = yuvaGorseli(tumGorseller(), YUVA.anaHero) ?? oneCikan?.kapak;
+  const heroGorsel =
+    yuvaGorseli(await tumGorseller(), YUVA.anaHero) ?? oneCikan?.kapak;
 
   /*
    * Yetkili ISIMLERI siteden tamamen kaldirildi (musteri istegi); cep
@@ -167,7 +168,7 @@ export default function AnaSayfa() {
                 >
                   <Gorsel
                     src={p.kapak}
-                    alt={p.baslik}
+                    alt=""
                     sizes={i === 0 ? "100vw" : "(max-width: 768px) 100vw, 50vw"}
                     className="transition-transform duration-700 group-hover:scale-[1.03]"
                   />

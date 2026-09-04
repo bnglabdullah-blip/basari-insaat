@@ -1,9 +1,9 @@
 import Link from "next/link";
 import Gorsel from "@/components/gorsel";
-import { DURUM_ETIKET, projeGorselleri, projeleriGetir } from "@/lib/queries";
+import { DURUM_ETIKET, projeleriGetir } from "@/lib/queries";
 
-export default function ProjeListesi() {
-  const projeler = projeleriGetir(false); // taslaklar dahil
+export default async function ProjeListesi() {
+  const projeler = await projeleriGetir(false); // taslaklar dahil
 
   return (
     <>
@@ -24,7 +24,8 @@ export default function ProjeListesi() {
       ) : (
         <ul className="mt-10 divide-y divide-[var(--color-rule)] border-y border-[var(--color-rule)]">
           {projeler.map((p) => {
-            const adet = projeGorselleri(p.id).length;
+            // Sayiyi liste sorgusu getiriyor; proje basina ayri sorgu (N+1) yok.
+            const adet = p.gorselSayisi ?? 0;
             return (
               <li key={p.id}>
                 <Link
@@ -43,7 +44,7 @@ export default function ProjeListesi() {
                     </p>
                   </div>
 
-                  {p.yayinda === 0 && (
+                  {!p.yayinda && (
                     <span className="shrink-0 border border-[var(--color-muted)] px-2.5 py-1 text-xs text-[var(--color-muted)]">
                       Taslak
                     </span>

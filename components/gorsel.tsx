@@ -13,14 +13,12 @@ import Image from "next/image";
 export default function Gorsel({
   src,
   alt,
-  fill = true,
   priority = false,
   sizes = "100vw",
   className = "",
 }: {
   src: string | null | undefined;
   alt: string;
-  fill?: boolean;
   priority?: boolean;
   sizes?: string;
   className?: string;
@@ -41,7 +39,11 @@ export default function Gorsel({
     <Image
       src={src}
       alt={alt}
-      fill={fill}
+      // Her cagiran taraf gorseli konumlandirilmis bir kutuya koyuyor;
+      // `fill` prop olarak disari acilmisti ama hicbir yerde false
+      // verilmedi. Ayarlanabilir gorunup tek degeri olan bir secenek,
+      // okuyana olmayan bir esneklik vaat eder.
+      fill
       priority={priority}
       sizes={sizes}
       className={`object-cover ${className}`}
