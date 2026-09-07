@@ -32,23 +32,36 @@ export default async function Hakkimizda() {
           {ayarlar.hakkindaBaslik || "Hakkımızda"}
         </h1>
 
-        {/* Metin girilmemişse blok hiç basılmıyor — boş bir çizgi kalmıyor. */}
-        {ayarlar.hakkindaMetin && (
-          <div className="enter enter-3 mt-16 grid gap-10 border-t border-[var(--color-rule)] pt-10 md:grid-cols-12">
-            {/* Paragraflarin TAMAMI burada basiliyor; panel onizlemesi de
-                metni bu sayfada duzenletiyor (ana sayfada ilk iki paragrafla
-                sinirli oldugu icin orada duzenlemek yaniltici olurdu). */}
-            <div
-              data-alan="hakkindaMetin"
-              data-alan-tip="paragraf"
-              className="space-y-6 text-lg leading-relaxed md:col-span-7 md:col-start-6"
-            >
-              {ayarlar.hakkindaMetin.split("\n\n").map((p, i) => (
+        {/*
+          Ic div (data-alan) HER ZAMAN DOM'da: alan bosken bile. Onizleme
+          koprusu (bkz. components/onizleme-koprusu.tsx) mevcut bir DOM
+          dugumunun icine yaziyor, yeni eleman olusturamiyor — div kosullu
+          basilsaydi, alan bos IKEN formdan yazilan ilk metin onizlemede
+          HICBIR ZAMAN gorunmezdi (yazacak dugum yok).
+
+          Bos gorunume (dis sarmalayicinin cizgisi/bosluk) ragmen "boş bir
+          çizgi kalmıyor" garantisi CSS ile korunuyor: `has-[...:empty]:hidden`
+          ic div paragrafsizken dis sarmalayiciyi tamamen gizliyor. Onizlemede
+          canli yazi eklendiginde tarayici bu secici tekrar degerlendirir ve
+          sarmalayici JS'siz kendiliginden goruntulenir.
+        */}
+        <div className="enter enter-3 mt-16 grid gap-10 border-t border-[var(--color-rule)] pt-10 md:grid-cols-12 has-[[data-alan-tip='paragraf']:empty]:hidden">
+          {/* Paragraflarin TAMAMI burada basiliyor; panel onizlemesi de
+              metni bu sayfada duzenletiyor (ana sayfada ilk iki paragrafla
+              sinirli oldugu icin orada duzenlemek yaniltici olurdu). */}
+          <div
+            data-alan="hakkindaMetin"
+            data-alan-tip="paragraf"
+            className="space-y-6 text-lg leading-relaxed md:col-span-7 md:col-start-6"
+          >
+            {ayarlar.hakkindaMetin
+              .split("\n\n")
+              .filter((p) => p.trim())
+              .map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
-            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Accent görsel — metin bloğunun ardından sayfaya nefes verir. */}
