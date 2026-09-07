@@ -5,9 +5,11 @@
 #   SUPABASE_SERVICE_ROLE_KEY    RLS'i bypass eder, tam yetkili
 #   OTURUM_ANAHTARI              oturum cerezini imzalar
 #   SITE_URL                     https://basariyapi.com
-#   ADMIN_PAROLA_HASH            yalnizca ilk kurulumda; panelden parola
-#                                degistirilince veritabanina yazilir ve bu
-#                                degisken artik okunmaz (bkz. lib/auth.ts)
+#
+# ADMIN_PAROLA_HASH burada YOK ve olmamali: parola ozeti artik `ayarlar`
+# tablosunda. lib/auth.ts gecerliHash() once veritabanina baktigi icin
+# degisken tanimlansa bile okunmazdi. Panelden parola degistirmek yeni ozeti
+# ayni satira yazar; baska bir yerde saklanan kopya yok.
 
 [build]
   command = "npm run build"

@@ -19,3 +19,6 @@ basari-resimler/
 
 # Local Netlify folder
 .netlify
+
+# Gecici admin parolasi - panelden degistirilince silinecek
+YENI-PAROLA.txt
