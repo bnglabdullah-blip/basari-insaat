@@ -53,12 +53,19 @@ export default async function AnaSayfa() {
           Eskişehir · Yapı ve Konut Projeleri
         </p>
 
-        <h1 className="font-display enter enter-2 mt-8 text-[length:var(--text-hero)] md:mt-10">
-          Yapıyı ayakta
-          <br />
-          tutan{" "}
-          {/* Tek vurgu rengi tek kelimede. Renk azlığı onu güçlü kılıyor. */}
-          <span className="text-[var(--color-clay)]">disiplindir</span>.
+        {/*
+          Eskiden bu baslik sabit metindi ve ne data-alan tasiyordu ne de
+          ayarlar.slogan'i okuyordu: panelden "Slogan" alanina yazilan hicbir
+          sey hicbir zaman buraya ulasamiyordu — kaydetme calisiyordu, gorunen
+          yer yoktu. Digger metin alanlariyla (ozet, hakkindaBaslik) ayni
+          duz-metin deseni kullanildi; kelime bazli vurgu rengi musteri
+          metniyle guvenilir sekilde eslesmedigi icin kaldirildi.
+        */}
+        <h1
+          data-alan="slogan"
+          className="font-display enter enter-2 mt-8 text-[length:var(--text-hero)] md:mt-10"
+        >
+          {ayarlar.slogan}
         </h1>
 
         <div className="enter enter-3 mt-14 grid gap-10 border-t border-[var(--color-rule)] pt-8 md:mt-20 md:grid-cols-12">
