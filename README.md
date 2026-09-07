@@ -85,7 +85,6 @@ supabase/
 
 scripts/parola.mjs         parola özeti ve oturum anahtarı üretir
 netlify.toml               Netlify build/dağıtım yapılandırması
-Dockerfile compose.yaml    kullanılmıyor — bkz. Bakım notları
 ```
 
 ### Neden route grupları
@@ -314,7 +313,7 @@ blok kaldırılabilir.
 (Netlify'da normal davranış budur). Paylaşılan bir sınır gerekirse `ayarlar`
 tablosuna ya da Upstash gibi bir servise taşınmalı (bkz. `lib/auth.ts`).
 
-**`Dockerfile` ve `compose.yaml` artık kullanılmıyor.** Bunlar sitenin önceki
-SQLite + kendi VPS'inde Docker imajı olarak çalıştığı döneme ait; taşımadan
-sonra güncel dağıtım tamamen Netlify üzerinden yapılıyor. Referans amaçlı
-repoda duruyorlar, silinmeleri güvenli.
+**Docker dağıtımı kaldırıldı.** `Dockerfile`, `compose.yaml` ve `.dockerignore`
+sitenin önceki SQLite + kendi VPS'inde Docker imajı olarak çalıştığı döneme
+aitti; taşımadan sonra tek dağıtım yolu Netlify olduğu için silindi. Eskisi
+git geçmişinde duruyor, gerekirse oradan geri alınabilir.

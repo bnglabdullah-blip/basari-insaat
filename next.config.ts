@@ -2,13 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /*
-   * standalone, Docker imaji icin duruyor (Dockerfile bunu bekliyor; Railway
-   * geri donus yolu). Netlify eklentisi kendi sunucu paketini uretir ve bu
-   * ayardan etkilenmez.
-   */
-  output: "standalone",
-
-  /*
    * Fotograflar artik Supabase Storage'in public URL'lerinden geliyor;
    * next/image uzak kaynaklari acikca beyaz listeye almadan reddeder.
    * Yol deseni bilerek dar: yalnizca public bucket icerigi.
