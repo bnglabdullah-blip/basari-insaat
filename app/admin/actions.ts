@@ -15,7 +15,8 @@ export async function girisAction(
   const sonuc = await girisYap(parola);
   if (!sonuc.ok) return { hata: sonuc.hata };
 
-  redirect("/admin");
+  // Dogrudan icerik ekranina: panelde yapilan is neredeyse her zaman bu.
+  redirect("/admin/icerik");
 }
 
 export async function cikisAction(): Promise<void> {

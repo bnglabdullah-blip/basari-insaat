@@ -61,12 +61,37 @@ export default function OnizlemeKoprusu() {
 
     /* ---------------- panel -> site ---------------- */
 
+    let vurguZaman: number | undefined;
+
     function mesaj(e: MessageEvent) {
       if (e.origin !== kaynak) return; // baska bir siteden gelen mesaji dinleme
       const d = e.data;
-      if (!d || d.tip !== "deger" || typeof d.alan !== "string") return;
-      if (!GECERLI.test(d.alan)) return;
-      bul(d.alan).forEach((el) => yaz(el, String(d.deger ?? "")));
+      if (!d || typeof d.alan !== "string" || !GECERLI.test(d.alan)) return;
+
+      if (d.tip === "deger") {
+        bul(d.alan).forEach((el) => yaz(el, String(d.deger ?? "")));
+        return;
+      }
+
+      /*
+       * Panelde bir alana odaklanildi: o alanin sayfadaki yerine kaydir ve
+       * kisa sure vurgula. Uzun bir sayfada "bu alan nerede gorunuyor"
+       * sorusunu cevaplamanin en kisa yolu, cevabi gostermek.
+       */
+      if (d.tip === "git") {
+        const el = bul(d.alan)[0];
+        if (!el) {
+          // Alan bu sayfada yok. Panel bunu bilmiyor; dogru sayfaya gecebilmesi
+          // icin haber veriyoruz. Boylece hangi alanin hangi sayfada oldugu
+          // bilgisi tek yerde (sablonlardaki data-alan) kaliyor.
+          window.parent.postMessage({ tip: "yok", alan: d.alan }, kaynak);
+          return;
+        }
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        el.dataset.vurgu = "1";
+        clearTimeout(vurguZaman);
+        vurguZaman = window.setTimeout(() => delete el.dataset.vurgu, 1400);
+      }
     }
 
     /* ---------------- site -> panel ---------------- */
@@ -136,6 +161,7 @@ export default function OnizlemeKoprusu() {
       document.removeEventListener("click", tikla, true);
       document.removeEventListener("input", yazildi);
       document.removeEventListener("keydown", tus);
+      clearTimeout(vurguZaman);
       delete document.documentElement.dataset.onizleme;
       kapat();
     };
@@ -152,9 +178,13 @@ export default function OnizlemeKoprusu() {
         transition: outline-color .12s;
       }
       [data-onizleme] [data-alan]:hover { outline-color: rgba(180,83,60,.55); }
-      [data-onizleme] [data-alan][contenteditable="true"] {
+      [data-onizleme] [data-alan][contenteditable="true"],
+      [data-onizleme] [data-alan][data-vurgu] {
         outline: 2px solid var(--color-clay, #b4533c);
         outline-offset: 3px;
+      }
+      [data-onizleme] [data-alan][data-vurgu] {
+        background: rgba(180,83,60,.09);
       }
     `}</style>
   );

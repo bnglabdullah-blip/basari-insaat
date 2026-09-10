@@ -20,7 +20,10 @@ export default async function Iletisim() {
    * Bos numara listeye girmiyor: panelden biri silinirse sayfada bos bir
    * satir kalmaz.
    */
-  const cepler = [a.yetkili1Tel, a.yetkili2Tel].filter(Boolean);
+  const cepler = [
+    { alan: "yetkili1Tel", tel: a.yetkili1Tel },
+    { alan: "yetkili2Tel", tel: a.yetkili2Tel },
+  ].filter((c) => c.tel);
 
   return (
     <div className="mx-auto max-w-[100rem] px-6 pb-24 pt-16 md:px-10 md:pb-36 md:pt-24">
@@ -38,16 +41,17 @@ export default async function Iletisim() {
                 Telefon
               </h2>
               <ul className="mt-2">
-                {cepler.map((tel) => (
+                {cepler.map((c) => (
                   <li
-                    key={tel}
+                    key={c.alan}
                     className="border-b border-[var(--color-rule)] py-4"
                   >
                     <a
-                      href={`tel:${telLink(tel)}`}
+                      data-alan={c.alan}
+                      href={`tel:${telLink(c.tel)}`}
                       className="link-underline tabular text-lg font-medium"
                     >
-                      {tel}
+                      {c.tel}
                     </a>
                   </li>
                 ))}
@@ -61,6 +65,7 @@ export default async function Iletisim() {
                 E-posta
               </h2>
               <a
+                data-alan="eposta"
                 href={`mailto:${a.eposta}`}
                 className="link-underline mt-4 inline-block text-lg"
               >
@@ -74,7 +79,10 @@ export default async function Iletisim() {
               <h2 className="eyebrow mt-12 border-b border-[var(--color-rule)] pb-4">
                 Çalışma saatleri
               </h2>
-              <p className="mt-4 text-[var(--color-muted)]">
+              <p
+                data-alan="calismaSaatleri"
+                className="mt-4 text-[var(--color-muted)]"
+              >
                 {a.calismaSaatleri}
               </p>
             </>

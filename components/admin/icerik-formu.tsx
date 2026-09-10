@@ -11,7 +11,7 @@ import type { VARSAYILAN } from "@/lib/icerik";
 type Ayarlar = typeof VARSAYILAN;
 
 const girdiSinif =
-  "w-full border border-[var(--color-rule)] bg-white px-4 py-3 outline-none transition-colors focus:border-[var(--color-navy)]";
+  "w-full border border-[var(--color-rule)] bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-[var(--color-navy)]";
 
 /** Tek bir ayar alani. `satir` verilirse textarea, verilmezse input. */
 function Alan({
@@ -33,7 +33,9 @@ function Alan({
         {etiket}
       </label>
       {ipucu && (
-        <p className="mt-1.5 text-xs text-[var(--color-muted)]">{ipucu}</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-muted)]">
+          {ipucu}
+        </p>
       )}
       {satir ? (
         <textarea
@@ -61,10 +63,18 @@ function Kaydet() {
     <button
       type="submit"
       disabled={pending}
-      className="bg-[var(--color-navy)] px-7 py-3 text-sm font-medium text-[var(--color-paper)] transition-colors hover:bg-[var(--color-clay)] disabled:opacity-50"
+      className="bg-[var(--color-navy)] px-6 py-2.5 text-sm font-medium text-[var(--color-paper)] transition-colors hover:bg-[var(--color-clay)] disabled:opacity-50"
     >
       {pending ? "Kaydediliyor…" : "Kaydet"}
     </button>
+  );
+}
+
+function Baslik({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="eyebrow border-b border-[var(--color-rule)] pb-3 text-[var(--color-navy)]">
+      {children}
+    </h2>
   );
 }
 
@@ -75,102 +85,133 @@ export default function IcerikFormu({ ayarlar }: { ayarlar: Ayarlar }) {
   );
 
   return (
-    <form action={action} className="mt-10 max-w-2xl space-y-14">
-      <section className="space-y-8">
-        <h2 className="font-display border-b border-[var(--color-rule)] pb-4 text-2xl">
-          İletişim bilgileri
-        </h2>
-        <p className="-mt-4 text-sm text-[var(--color-muted)]">
-          Bu alanlar sitenin altbilgisinde ve iletişim sayfasında görünür.
-          Bir alanı boş bırakırsanız varsayılan değerine döner.
+    <form action={action}>
+      {/*
+        Kaydet cubugu rayin tepesine yapisiyor.
+        Duzenlemenin cogu sagdaki onizlemede yapiliyor ve form uzun; kaydetmek
+        icin her seferinde formun dibine inmek gerekseydi, kaydetmeyi unutup
+        sayfadan cikmak en olagan son olurdu.
+      */}
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--color-rule)] bg-white px-5 py-3">
+        <Kaydet />
+        {durum.bilgi && (
+          <p role="status" className="text-sm text-[var(--color-navy)]">
+            {durum.bilgi}
+          </p>
+        )}
+        {durum.hata && (
+          <p role="alert" className="text-sm text-[var(--color-clay)]">
+            {durum.hata}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-10 px-5 py-6">
+        <p className="text-sm leading-relaxed text-[var(--color-muted)]">
+          Sağdaki önizlemede{" "}
+          <strong className="font-medium text-[var(--color-navy)]">
+            herhangi bir yazıya tıklayın
+          </strong>{" "}
+          ve doğrudan düzenleyin. Buradaki bir alana tıkladığınızda önizleme o
+          yazının bulunduğu yere gider.
         </p>
 
-        <Alan ad="adres" etiket="Adres" deger={ayarlar.adres} satir={2} />
-        <Alan ad="ilce" etiket="İlçe / İl" deger={ayarlar.ilce} />
-        <Alan
-          ad="telefonSabit"
-          etiket="Sabit telefon"
-          deger={ayarlar.telefonSabit}
-        />
+        <section className="space-y-6">
+          <Baslik>Site metinleri</Baslik>
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Alan ad="yetkili1Ad" etiket="1. yetkili adı" deger={ayarlar.yetkili1Ad} />
-          <Alan ad="yetkili1Tel" etiket="1. yetkili telefonu" deger={ayarlar.yetkili1Tel} />
-          <Alan ad="yetkili2Ad" etiket="2. yetkili adı" deger={ayarlar.yetkili2Ad} />
-          <Alan ad="yetkili2Tel" etiket="2. yetkili telefonu" deger={ayarlar.yetkili2Tel} />
-        </div>
+          <Alan ad="slogan" etiket="Slogan" deger={ayarlar.slogan} />
+          <Alan
+            ad="ozet"
+            etiket="Kısa tanıtım"
+            ipucu="Ana sayfanın üstünde ve altbilgide görünür."
+            deger={ayarlar.ozet}
+            satir={4}
+          />
+          <Alan
+            ad="hakkindaBaslik"
+            etiket="Hakkımızda başlığı"
+            deger={ayarlar.hakkindaBaslik}
+          />
+          <Alan
+            ad="hakkindaMetin"
+            etiket="Hakkımızda metni"
+            ipucu="Yeni paragraf için bir boş satır bırakın."
+            deger={ayarlar.hakkindaMetin}
+            satir={10}
+          />
+        </section>
 
-        <Alan
-          ad="eposta"
-          etiket="E-posta"
-          ipucu="Boş bırakırsanız sitede gösterilmez."
-          deger={ayarlar.eposta}
-        />
-        <Alan
-          ad="calismaSaatleri"
-          etiket="Çalışma saatleri"
-          deger={ayarlar.calismaSaatleri}
-        />
-        <Alan
-          ad="whatsapp"
-          etiket="WhatsApp numarası"
-          ipucu="İletişim formu bu numaraya yönlenir. 0534 590 25 63 gibi yazın; başındaki sıfır veya +90 fark etmez."
-          deger={ayarlar.whatsapp}
-        />
-      </section>
+        <section className="space-y-6">
+          <Baslik>İletişim bilgileri</Baslik>
+          <p className="-mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
+            Bir alanı boş bırakırsanız varsayılan değerine döner.
+          </p>
 
-      <section className="space-y-8">
-        <h2 className="font-display border-b border-[var(--color-rule)] pb-4 text-2xl">
-          Site metinleri
-        </h2>
+          <Alan ad="adres" etiket="Adres" deger={ayarlar.adres} satir={2} />
+          <Alan ad="ilce" etiket="İlçe / İl" deger={ayarlar.ilce} />
+          <Alan
+            ad="telefonSabit"
+            etiket="Sabit telefon"
+            deger={ayarlar.telefonSabit}
+          />
+          <Alan
+            ad="yetkili1Tel"
+            etiket="1. yetkili telefonu"
+            deger={ayarlar.yetkili1Tel}
+          />
+          <Alan
+            ad="yetkili2Tel"
+            etiket="2. yetkili telefonu"
+            deger={ayarlar.yetkili2Tel}
+          />
+          <Alan
+            ad="eposta"
+            etiket="E-posta"
+            ipucu="Boş bırakırsanız sitede gösterilmez."
+            deger={ayarlar.eposta}
+          />
+          <Alan
+            ad="calismaSaatleri"
+            etiket="Çalışma saatleri"
+            deger={ayarlar.calismaSaatleri}
+          />
+        </section>
 
-        <Alan ad="slogan" etiket="Slogan" deger={ayarlar.slogan} />
-        <Alan
-          ad="ozet"
-          etiket="Kısa tanıtım"
-          ipucu="Ana sayfanın üstünde ve altbilgide görünür."
-          deger={ayarlar.ozet}
-          satir={3}
-        />
-        <Alan
-          ad="hakkindaBaslik"
-          etiket="Hakkımızda başlığı"
-          deger={ayarlar.hakkindaBaslik}
-        />
-        <Alan
-          ad="hakkindaMetin"
-          etiket="Hakkımızda metni"
-          ipucu="Yeni paragraf için bir boş satır bırakın."
-          deger={ayarlar.hakkindaMetin}
-          satir={10}
-        />
-        <Alan
-          ad="metaAciklama"
-          etiket="Arama motoru açıklaması"
-          ipucu="Google sonuçlarında başlığın altında çıkan metin. 155 karakteri geçmemeli."
-          deger={ayarlar.metaAciklama}
-          satir={3}
-        />
-      </section>
+        {/*
+          Sitede karsiligi olmayan alanlar ayri bir baslik altinda.
+          Onizlemede tiklanacak bir yerleri olmadigi icin, aranip
+          bulunamadiklarinda "bozuk" gibi gorunmesinler.
+        */}
+        <section className="space-y-6">
+          <Baslik>Sitede görünmeyen alanlar</Baslik>
 
-      {durum.bilgi && (
-        <p
-          role="status"
-          className="border-l-2 border-[var(--color-navy)] bg-[var(--color-navy)]/5 px-4 py-3 text-sm"
-        >
-          {durum.bilgi}
-        </p>
-      )}
-      {durum.hata && (
-        <p
-          role="alert"
-          className="border-l-2 border-[var(--color-clay)] bg-[var(--color-clay)]/8 px-4 py-3 text-sm text-[var(--color-clay)]"
-        >
-          {durum.hata}
-        </p>
-      )}
-
-      <Kaydet />
+          <Alan
+            ad="yetkili1Ad"
+            etiket="1. yetkili adı"
+            ipucu="Yalnızca panelde tutulur; sitede hiçbir yerde yazmaz."
+            deger={ayarlar.yetkili1Ad}
+          />
+          <Alan
+            ad="yetkili2Ad"
+            etiket="2. yetkili adı"
+            ipucu="Yalnızca panelde tutulur; sitede hiçbir yerde yazmaz."
+            deger={ayarlar.yetkili2Ad}
+          />
+          <Alan
+            ad="whatsapp"
+            etiket="WhatsApp numarası"
+            ipucu="İletişim formu bu numaraya yönlenir. 0534 590 25 63 gibi yazın; başındaki sıfır veya +90 fark etmez."
+            deger={ayarlar.whatsapp}
+          />
+          <Alan
+            ad="metaAciklama"
+            etiket="Arama motoru açıklaması"
+            ipucu="Google sonuçlarında başlığın altında çıkan metin. 155 karakteri geçmemeli."
+            deger={ayarlar.metaAciklama}
+            satir={3}
+          />
+        </section>
+      </div>
     </form>
   );
 }

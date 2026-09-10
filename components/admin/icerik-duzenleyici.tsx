@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { VARSAYILAN } from "@/lib/icerik";
 
 /**
- * Bolunmus icerik ekrani: solda form, sagda sitenin canli onizlemesi.
+ * Icerik ekrani: solda dar bir form rayi, sagda sitenin canli onizlemesi.
  *
- * Iki yonlu calisir. Forma yazildikca onizleme guncellenir; onizlemede bir
- * metne tiklanip degistirildiginde formdaki alan guncellenir. Kaydet'e
- * basilana kadar hicbiri kalici degil.
+ * Duzenlemenin ASIL yeri onizleme: metne tiklanip yerinde degistiriliyor.
+ * Soldaki ray iki is icin duruyor ve bu yuzden kaldirilamaz:
+ *   1. Sitede gorunur karsiligi olmayan alanlar (SEO metni, WhatsApp
+ *      numarasi, yetkili adlari) baska hicbir yerden girilemez.
+ *   2. Bos bir alanin onizlemede tiklanacak yuzeyi yoktur; ilk metin
+ *      mecburen formdan giriliyor.
  *
  * Form DOM uzerinden dinleniyor, React state'i uzerinden degil. Sebebi:
  * IcerikFormu KONTROLSUZ bir form (alanlar `defaultValue` ile basiliyor,
@@ -34,6 +37,33 @@ const GENISLIKLER = [
 /** Panelden gecerli sayilan alan adlari — onizlemeden gelen her sey degil. */
 const ALANLAR = new Set(Object.keys(VARSAYILAN));
 
+/**
+ * Bir alan acik olan sayfada BULUNAMADIGINDA onizlemenin gececegi sayfa.
+ *
+ * Kasitli olarak eksik bir harita: burasi "alan hangi sayfalarda var"
+ * sorusunu cevaplamiyor, yalnizca "bulunamazsa nereye bakalim" diyor.
+ * Asil bilgi sablonlardaki data-alan isaretlerinde ve orada kaliyor —
+ * cerceve alani bulamazsa "yok" diye haber veriyor (bkz.
+ * components/onizleme-koprusu.tsx). Boylece footer'daki gibi her sayfada
+ * gorunen alanlar icin gereksiz sayfa degisimi olmuyor.
+ *
+ * Listede olmayan alanlarin (metaAciklama, whatsapp, yetkili adlari) sitede
+ * gorunur bir karsiligi yok; odaklanildiginda onizleme yerinde kaliyor.
+ */
+const ALAN_SAYFA: Record<string, string> = {
+  slogan: "/",
+  ozet: "/",
+  hakkindaBaslik: "/hakkimizda",
+  hakkindaMetin: "/hakkimizda",
+  adres: "/sirket-bilgilerimiz",
+  ilce: "/sirket-bilgilerimiz",
+  telefonSabit: "/sirket-bilgilerimiz",
+  eposta: "/iletisim",
+  calismaSaatleri: "/iletisim",
+  yetkili1Tel: "/iletisim",
+  yetkili2Tel: "/iletisim",
+};
+
 export default function IcerikDuzenleyici({
   children,
 }: {
@@ -43,6 +73,19 @@ export default function IcerikDuzenleyici({
   const cerceve = useRef<HTMLIFrameElement>(null);
   const [sayfa, setSayfa] = useState("/");
   const [genislik, setGenislik] = useState(0);
+  const [tazele, setTazele] = useState(0);
+
+  /*
+   * Sayfa degisimi bir cerceve yenilenmesi demek; kaydirma istegi ancak yeni
+   * sayfa hazir olunca gonderilebilir. Istek o ana kadar burada bekliyor.
+   */
+  const bekleyen = useRef<string | null>(null);
+  // Mesaj dinleyicisi bir kez baglaniyor; state'i kapanistan degil buradan
+  // okumali, yoksa hep ilk render'daki sayfayi gorurdu.
+  const acikSayfa = useRef(sayfa);
+  useEffect(() => {
+    acikSayfa.current = sayfa;
+  }, [sayfa]);
 
   /* ---------------- form -> onizleme ---------------- */
 
@@ -50,19 +93,31 @@ export default function IcerikDuzenleyici({
     const kok = sarmalayici.current;
     if (!kok) return;
 
+    function gonder(mesaj: object) {
+      cerceve.current?.contentWindow?.postMessage(mesaj, window.location.origin);
+    }
+
     function degisti(e: Event) {
       const alan = e.target as HTMLInputElement | HTMLTextAreaElement | null;
       if (!alan?.name || !ALANLAR.has(alan.name)) return;
-      cerceve.current?.contentWindow?.postMessage(
-        { tip: "deger", alan: alan.name, deger: alan.value },
-        window.location.origin
-      );
+      gonder({ tip: "deger", alan: alan.name, deger: alan.value });
+    }
+
+    // Bir alana odaklanmak "bunu duzenliyorum" demek; onizleme de oraya baksin.
+    function odaklandi(e: FocusEvent) {
+      const alan = e.target as HTMLInputElement | null;
+      if (!alan?.name || !ALANLAR.has(alan.name)) return;
+      gonder({ tip: "git", alan: alan.name });
     }
 
     // Yakalama asamasinda degil, normal kabarma ile: form alanlarinin
     // hepsi bu dugumun altinda.
     kok.addEventListener("input", degisti);
-    return () => kok.removeEventListener("input", degisti);
+    kok.addEventListener("focusin", odaklandi);
+    return () => {
+      kok.removeEventListener("input", degisti);
+      kok.removeEventListener("focusin", odaklandi);
+    };
   }, []);
 
   /* ---------------- onizleme -> form ---------------- */
@@ -97,13 +152,31 @@ export default function IcerikDuzenleyici({
       // icin guvenilir degil — bkz. onizleme-koprusu.tsx).
       if (d.tip === "hazir") {
         const pencere = cerceve.current?.contentWindow;
-        if (pencere) hepsiniGonder(pencere);
+        if (!pencere) return;
+        hepsiniGonder(pencere);
+        if (bekleyen.current) {
+          pencere.postMessage(
+            { tip: "git", alan: bekleyen.current },
+            window.location.origin
+          );
+          bekleyen.current = null;
+        }
         return;
       }
 
-      if (d.tip !== "duzenle" || typeof d.alan !== "string") return;
-      if (!ALANLAR.has(d.alan)) return;
+      if (typeof d.alan !== "string" || !ALANLAR.has(d.alan)) return;
 
+      // Alan acik sayfada bulunamadi: gorunur oldugu sayfaya gec, kaydirma
+      // istegini yeni sayfa hazir olunca tekrarla.
+      if (d.tip === "yok") {
+        const yol = ALAN_SAYFA[d.alan];
+        if (!yol || yol === acikSayfa.current) return;
+        bekleyen.current = d.alan;
+        setSayfa(yol);
+        return;
+      }
+
+      if (d.tip !== "duzenle") return;
       const alan = sarmalayici.current?.querySelector<HTMLInputElement>(
         `[name="${d.alan}"]`
       );
@@ -115,68 +188,96 @@ export default function IcerikDuzenleyici({
     return () => window.removeEventListener("message", mesaj);
   }, []);
 
+  const dugmeSinif =
+    "px-3 py-1.5 text-xs transition-colors rounded-full whitespace-nowrap";
+
   return (
-    <div
-      ref={sarmalayici}
-      className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-    >
-      <div>{children}</div>
+    <div ref={sarmalayici} className="flex h-full flex-col lg:flex-row">
+      {/* Sol ray: form. Kendi icinde kayiyor, onizleme yerinde kaliyor. */}
+      <div className="w-full shrink-0 overflow-y-auto border-[var(--color-rule)] lg:w-[26rem] lg:border-r xl:w-[29rem]">
+        {children}
+      </div>
 
-      {/* Onizleme genis ekranda sabit kalir: form uzun, asagi kaydirirken
-          sitenin gozden kaybolmasi bu ekranin tum anlamini yok ederdi. */}
-      <aside className="hidden lg:block">
-        <div className="sticky top-6">
-          <div className="flex flex-wrap items-center gap-3 border border-[var(--color-rule)] border-b-0 bg-white px-4 py-3">
-            <select
-              value={sayfa}
-              onChange={(e) => setSayfa(e.target.value)}
-              aria-label="Önizlenecek sayfa"
-              className="border border-[var(--color-rule)] px-2 py-1.5 text-sm"
-            >
-              {ONIZLEME_SAYFALARI.map((s) => (
-                <option key={s.yol} value={s.yol}>
-                  {s.ad}
-                </option>
-              ))}
-            </select>
+      {/*
+        Onizleme ekranin geri kalanini kapliyor ve dar ekranda hic basilmiyor:
+        390 piksellik bir telefonda hem formu hem siteyi yan yana gostermek
+        ikisini de kullanilamaz hale getirirdi.
+      */}
+      <div className="relative hidden min-w-0 flex-1 flex-col bg-[var(--color-paper)] lg:flex">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--color-rule)] bg-white px-4 py-2.5">
+          <select
+            value={sayfa}
+            onChange={(e) => setSayfa(e.target.value)}
+            aria-label="Önizlenecek sayfa"
+            className="border border-[var(--color-rule)] bg-white px-2.5 py-1.5 text-sm"
+          >
+            {ONIZLEME_SAYFALARI.map((s) => (
+              <option key={s.yol} value={s.yol}>
+                {s.ad}
+              </option>
+            ))}
+          </select>
 
-            <div className="ml-auto flex gap-1">
-              {GENISLIKLER.map((g) => (
-                <button
-                  key={g.px}
-                  type="button"
-                  onClick={() => setGenislik(g.px)}
-                  className={`px-2.5 py-1.5 text-xs transition-colors ${
-                    genislik === g.px
-                      ? "bg-[var(--color-navy)] text-white"
-                      : "text-[var(--color-muted)] hover:bg-[var(--color-paper)]"
-                  }`}
-                >
-                  {g.ad}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/*
+            Yenile, kaydettikten sonra sunucunun gercekten ne bastigini
+            gormek icin. Kaydedilmemis duzenlemeler kaybolmuyor: cerceve
+            yeniden "hazir" dediginde form degerleri bastan gonderiliyor.
+          */}
+          <button
+            type="button"
+            onClick={() => setTazele((n) => n + 1)}
+            className="border border-[var(--color-rule)] px-3 py-1.5 text-xs text-[var(--color-muted)] transition-colors hover:border-[var(--color-navy)] hover:text-[var(--color-navy)]"
+          >
+            Yenile
+          </button>
 
-          <div className="h-[calc(100vh-11rem)] overflow-hidden border border-[var(--color-rule)] bg-white">
-            <iframe
-              ref={cerceve}
-              src={sayfa}
-              title="Site önizlemesi"
-              className="h-full border-0 bg-white"
-              style={
-                genislik ? { width: genislik, margin: "0 auto" } : { width: "100%" }
-              }
-            />
-          </div>
-
-          <p className="mt-3 text-xs text-[var(--color-muted)]">
-            Önizlemedeki kesikli çerçeveli metinlere tıklayıp doğrudan
-            düzenleyebilirsiniz. Değişiklikler <strong>Kaydet</strong>e
-            basılana kadar kalıcı değildir.
+          <p className="ml-auto text-xs text-[var(--color-muted)]">
+            Yazıya tıklayıp düzenleyin · çıkmak için <strong>Esc</strong>
           </p>
         </div>
-      </aside>
+
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {/*
+            key: sayfa degisiminde de Yenile'de de cerceve bastan kuruluyor.
+            src degistirmek yerine remount, cunku onizlemede yapilan
+            duzenlemeler DOM'da; temiz bir sayfa istedigimizde gercekten
+            temiz baslamasi gerekiyor.
+          */}
+          <iframe
+            key={`${sayfa}-${tazele}`}
+            ref={cerceve}
+            src={sayfa}
+            title="Site önizlemesi"
+            className="h-full border-0 bg-white"
+            style={
+              genislik
+                ? { width: genislik, margin: "0 auto" }
+                : { width: "100%" }
+            }
+          />
+        </div>
+
+        {/* Genislik secici cercevenin UZERINDE yuzuyor: arac cubugunda yer
+            kaplamiyor ve baktiginiz yere yakin duruyor. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
+          <div className="pointer-events-auto flex gap-1 rounded-full border border-[var(--color-rule)] bg-white/95 p-1 shadow-sm backdrop-blur">
+            {GENISLIKLER.map((g) => (
+              <button
+                key={g.px}
+                type="button"
+                onClick={() => setGenislik(g.px)}
+                className={`${dugmeSinif} ${
+                  genislik === g.px
+                    ? "bg-[var(--color-navy)] text-white"
+                    : "text-[var(--color-muted)] hover:bg-[var(--color-paper)]"
+                }`}
+              >
+                {g.ad}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

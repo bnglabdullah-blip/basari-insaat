@@ -21,12 +21,44 @@ export default async function SirketBilgilerimiz() {
    * elimizde dogrulanmis degerleri yok ve kurumsal bir sayfaya uydurma
    * numara yazilmaz. Musteri verdiginde panele alan eklenir.
    */
-  const satirlar = [
+  const satirlar: {
+    etiket: string;
+    deger: string;
+    /** Panel onizlemesinin yazacagi ayar anahtari; yoksa isaretlenmez. */
+    alan?: string;
+    /** Tek bir alana karsilik gelmeyen satirlarin kendi govdesi. */
+    govde?: React.ReactNode;
+    tel?: boolean;
+    posta?: boolean;
+  }[] = [
+    // firma panelden duzenlenmiyor: bu yuzden alan isareti de yok.
     { etiket: "Firma", deger: a.firma },
-    { etiket: "Adres", deger: [a.adres, a.ilce].filter(Boolean).join(", ") },
-    { etiket: "Sabit telefon", deger: a.telefonSabit, tel: true },
-    { etiket: "E-posta", deger: a.eposta, posta: true },
-    { etiket: "Çalışma saatleri", deger: a.calismaSaatleri },
+    {
+      etiket: "Adres",
+      deger: [a.adres, a.ilce].filter(Boolean).join(", "),
+      // Adres ve ilce panelde AYRI iki alan; tek bir dugume isaret koymak
+      // birine yazildiginda digerinin de silinmesi demekti (koprü dugumun
+      // tamamini yeniden yazar). Altbilgideki ayrimin aynisi.
+      govde: (
+        <>
+          <span data-alan="adres">{a.adres}</span>
+          {a.adres && a.ilce ? ", " : ""}
+          <span data-alan="ilce">{a.ilce}</span>
+        </>
+      ),
+    },
+    {
+      etiket: "Sabit telefon",
+      deger: a.telefonSabit,
+      tel: true,
+      alan: "telefonSabit",
+    },
+    { etiket: "E-posta", deger: a.eposta, posta: true, alan: "eposta" },
+    {
+      etiket: "Çalışma saatleri",
+      deger: a.calismaSaatleri,
+      alan: "calismaSaatleri",
+    },
   ].filter((s) => s.deger);
 
   const haritaSorgu = encodeURIComponent(`${a.adres} ${a.ilce}`);
@@ -45,20 +77,30 @@ export default async function SirketBilgilerimiz() {
             className="grid gap-2 border-b border-[var(--color-rule)] py-6 md:grid-cols-12 md:items-baseline md:py-7"
           >
             <dt className="eyebrow md:col-span-4">{s.etiket}</dt>
+            {/* data-alan en ictekı metin dugumune konuyor, dd'ye degil:
+                kopru dugumun icerigini komple degistirdigi icin, disa
+                konsaydi ilk duzenlemede baglanti duz metne donerdi. */}
             <dd className="text-lg leading-relaxed md:col-span-8">
-              {s.tel ? (
+              {s.govde ? (
+                s.govde
+              ) : s.tel ? (
                 <a
+                  data-alan={s.alan}
                   href={`tel:${telLink(s.deger)}`}
                   className="link-underline tabular font-medium"
                 >
                   {s.deger}
                 </a>
               ) : s.posta ? (
-                <a href={`mailto:${s.deger}`} className="link-underline">
+                <a
+                  data-alan={s.alan}
+                  href={`mailto:${s.deger}`}
+                  className="link-underline"
+                >
                   {s.deger}
                 </a>
               ) : (
-                s.deger
+                <span data-alan={s.alan}>{s.deger}</span>
               )}
             </dd>
           </div>

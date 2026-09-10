@@ -8,7 +8,7 @@ import {
 } from "@/app/admin/(panel)/icerik/actions";
 
 const girdiSinif =
-  "w-full border border-[var(--color-rule)] bg-white px-4 py-3 outline-none transition-colors focus:border-[var(--color-navy)]";
+  "w-full border border-[var(--color-rule)] bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-[var(--color-navy)]";
 
 function Kaydet() {
   const { pending } = useFormStatus();
@@ -16,7 +16,7 @@ function Kaydet() {
     <button
       type="submit"
       disabled={pending}
-      className="bg-[var(--color-navy)] px-8 py-3 text-sm font-medium text-white disabled:opacity-50"
+      className="bg-[var(--color-navy)] px-6 py-2.5 text-sm font-medium text-white disabled:opacity-50"
     >
       {pending ? "Değiştiriliyor…" : "Parolayı değiştir"}
     </button>
@@ -30,9 +30,9 @@ export default function ParolaFormu() {
   );
 
   return (
-    <section className="mt-16 border-t border-[var(--color-rule)] pt-10">
-      <h2 className="font-display text-2xl">Parola</h2>
-      <p className="mt-3 max-w-prose text-[var(--color-muted)]">
+    <section className="border-t border-[var(--color-rule)] pt-8">
+      <h2 className="eyebrow text-[var(--color-navy)]">Parola</h2>
+      <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)]">
         Panel giriş parolanızı buradan değiştirebilirsiniz. En az 10 karakter
         olmalı. Parolanın kendisi hiçbir yerde saklanmaz, geri getirilemez —
         değiştirdikten sonra güvenli bir yere not edin.
@@ -43,7 +43,7 @@ export default function ParolaFormu() {
         formu "parola degistirme" olarak taniyip yeni parolayi kaydetmeyi
         onerebilsin diye. current-password / new-password standart adlar.
       */}
-      <form action={action} className="mt-8 max-w-md space-y-6">
+      <form action={action} className="mt-6 space-y-5">
         <div>
           <label
             htmlFor="mevcut"

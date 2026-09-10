@@ -38,9 +38,9 @@ export default async function AnaSayfa() {
    * etiketini koruyor.
    */
   const telefonlar = [
-    { ad: "Sabit hat", tel: ayarlar.telefonSabit },
-    { ad: "", tel: ayarlar.yetkili1Tel },
-    { ad: "", tel: ayarlar.yetkili2Tel },
+    { ad: "Sabit hat", tel: ayarlar.telefonSabit, alan: "telefonSabit" },
+    { ad: "", tel: ayarlar.yetkili1Tel, alan: "yetkili1Tel" },
+    { ad: "", tel: ayarlar.yetkili2Tel, alan: "yetkili2Tel" },
   ].filter((t) => t.tel);
 
   return (
@@ -307,7 +307,12 @@ export default async function AnaSayfa() {
                     </span>
                   )}
                   {/* ml-auto: etiket basilmadiginda da numara sagda kalir. */}
-                  <span className="tabular ml-auto font-medium">{t.tel}</span>
+                  <span
+                    data-alan={t.alan}
+                    className="tabular ml-auto font-medium"
+                  >
+                    {t.tel}
+                  </span>
                 </a>
               ))}
             </div>

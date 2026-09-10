@@ -7,9 +7,8 @@ import { cikisAction } from "../actions";
 export const dynamic = "force-dynamic";
 
 const PANEL_MENU = [
-  { yol: "/admin", ad: "Özet" },
-  { yol: "/admin/projeler", ad: "Projeler" },
   { yol: "/admin/icerik", ad: "İçerik" },
+  { yol: "/admin/projeler", ad: "Projeler" },
 ];
 
 export default async function PanelLayout({
@@ -23,10 +22,16 @@ export default async function PanelLayout({
   await yetkiGerekli();
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-[var(--color-rule)] bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-4 px-6 py-4">
-          <Link href="/admin" className="shrink-0">
+    /*
+     * Panel tam ekran, sayfa boyu degil. Icerik duzenleyici viewport
+     * yuksekligini bastan sona kullaniyor (onizleme cercevesi ekranin dibine
+     * kadar insin diye); bunun icin kaydirma govdede degil, asagidaki
+     * main'in kendisinde. Proje ekranlari da orada normal sekilde kayiyor.
+     */
+    <div className="flex h-dvh flex-col">
+      <header className="shrink-0 border-b border-[var(--color-rule)] bg-white">
+        <div className="mx-auto flex max-w-[100rem] flex-wrap items-center gap-x-8 gap-y-4 px-6 py-4">
+          <Link href="/admin/icerik" className="shrink-0">
             <Image
               src="/logo.svg"
               alt="Başarı İnşaat yönetim paneli"
@@ -68,7 +73,10 @@ export default async function PanelLayout({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-12">{children}</main>
+      {/* Genislik sinirlamasi burada DEGIL, ihtiyaci olan ekranda
+          (projeler/layout.tsx). Icerik duzenleyicinin tam genislige
+          yayilabilmesi icin. */}
+      <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }

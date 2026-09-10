@@ -55,8 +55,9 @@ app/
   admin/
     giris/                 parola ekranı — panel kabuğunun DIŞINDA
     (panel)/               giriş yapılmış alan; layout'u yetki kontrolü yapar
-      page.tsx             özet
+      page.tsx             /admin/icerik'e yönlendirir (özet ekranı kaldırıldı)
       projeler/             liste, yeni, [id] düzenle
+        layout.tsx          proje ekranlarının ortak gövdesi (genişlik sınırı)
       icerik/               site metinleri, iletişim bilgileri, parola
       */actions.ts         o ekrana ait Server Action'lar
   layout.tsx               kök: fontlar, meta, globals.css
@@ -136,11 +137,20 @@ giren ikinci bir kilit.
 
 ## Canlı önizleme (İçerik ekranı)
 
-`/admin/icerik` bölünmüş bir ekran: solda form, sağda sitenin gerçek
-önizlemesi. İki yönlü çalışır — forma yazdıkça önizleme güncellenir,
-önizlemedeki metne tıklayıp doğrudan düzenlerseniz formdaki alan güncellenir.
+`/admin/icerik` panele girişte açılan ekran: solda dar bir form rayı, sağda
+ekranın geri kalanını kaplayan gerçek site önizlemesi. Düzenlemenin asıl yeri
+önizleme — metne tıklanıp yerinde değiştiriliyor, formdaki alan kendiliğinden
+güncelleniyor. Ters yön de çalışıyor: forma yazdıkça önizleme güncellenir.
 Önizleme sayfası seçilebilir (ana sayfa, hakkımızda, iletişim, şirket
 bilgileri) ve mobil/tablet/tam genişlikte görüntülenebilir.
+
+Soldaki bir alana tıklandığında önizleme o yazının bulunduğu yere kayar ve
+kısa süre vurgular; yazı açık olan sayfada değilse önizleme önce doğru
+sayfaya geçer.
+
+**Form kaldırılamaz**, çünkü iki durumu yalnızca o karşılıyor: sitede görünür
+karşılığı olmayan alanlar (SEO metni, WhatsApp numarası, yetkili adları) ve
+henüz boş olan alanlar — boş bir alanın önizlemede tıklanacak yüzeyi yoktur.
 
 **Hiçbir şey anında kaydedilmez.** Kalıcı değişiklik yalnızca "Kaydet"e
 basıldığında, mevcut `icerikKaydetAction` üzerinden olur.
@@ -150,8 +160,14 @@ Nasıl çalışıyor:
 | Parça | İşi |
 |---|---|
 | `components/onizleme-koprusu.tsx` | Site tarafı. `iframe` içinde çalışır, metinleri düzenlenebilir yapar, değişikliği panele yollar. |
-| `components/admin/icerik-duzenleyici.tsx` | Panel tarafı. Bölünmüş yerleşim; form ile `iframe` arasında `postMessage` köprüsü. |
+| `components/admin/icerik-duzenleyici.tsx` | Panel tarafı. Ray + önizleme yerleşimi; form ile `iframe` arasında `postMessage` köprüsü. |
 | `data-alan="<anahtar>"` | Site şablonlarındaki işaretler. Hangi HTML düğümünün hangi ayar alanına karşılık geldiğini söyler. |
+
+Mesajlar: panel `deger` (metni yaz) ve `git` (alana kaydır) yollar; çerçeve
+`hazir` (dinlemeye başladım), `duzenle` (önizlemede değiştirildi) ve `yok`
+(alan bu sayfada bulunamadı) yollar. `yok` sayesinde "hangi alan hangi
+sayfada" bilgisi tek yerde — şablonlardaki `data-alan` işaretlerinde —
+kalıyor; panel bunu bir listeden tahmin etmiyor, çerçeveye soruyor.
 
 **Sayfa HTML'i saklanmıyor.** İçerik veritabanında alan olarak duruyor;
 düzenlenen şey ekrandaki HTML değil, o alanın değeri. Bileşenler her istekte
